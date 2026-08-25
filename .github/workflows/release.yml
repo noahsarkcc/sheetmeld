@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build SmartDiff.exe
+    name: Build SheetMeld.exe
     runs-on: windows-latest
     env:
       # Test scripts print Chinese; the Windows runner defaults to cp1252
@@ -42,7 +42,7 @@ jobs:
       - name: Build executable
         run: >
           pyinstaller --noconfirm --onefile --noconsole
-          --name SmartDiff
+          --name SheetMeld
           --add-data "static;static"
           --hidden-import pystray._win32
           --hidden-import PIL.Image
@@ -52,8 +52,8 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SmartDiff
-          path: dist/SmartDiff.exe
+          name: SheetMeld
+          path: dist/SheetMeld.exe
 
       - name: Extract release notes from changelog
         if: startsWith(github.ref, 'refs/tags/')
@@ -70,5 +70,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.notes.outputs.title }}
-          files: dist/SmartDiff.exe
+          files: dist/SheetMeld.exe
           body_path: release_notes.md

@@ -1,5 +1,5 @@
 """
-System tray integration for SmartDiff.
+System tray integration for SheetMeld.
 
 Hides the console window and provides a tray icon with a menu:
 - Open browser
@@ -93,7 +93,7 @@ def _render_miku_icon(svg_path: str, size: int = 64, face_max_y: int = 8):
 
 
 def _make_icon_image(size: int = 64) -> "Image.Image":
-    """Generate a simple SmartDiff icon (rounded square + 'SD' text)."""
+    """Generate a simple SheetMeld icon (rounded square with diff bars)."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     pad = max(2, size // 16)
@@ -122,7 +122,7 @@ def _make_icon_image(size: int = 64) -> "Image.Image":
 
 
 def start_tray(port: int, log_path: str, workspace_resolver, shutdown_fn,
-               app_name: str = "SmartDiff", icon_path: str = "") -> bool:
+               app_name: str = "SheetMeld", icon_path: str = "") -> bool:
     """Launch the tray icon. Blocks until the user quits.
 
     - port: Flask server port (for the "Open browser" menu item).

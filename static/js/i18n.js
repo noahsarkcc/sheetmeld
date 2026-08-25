@@ -1,6 +1,6 @@
 const I18N_MESSAGES = {
   zh: {
-    'app.title': 'SmartDiff',
+    'app.title': 'SheetMeld',
     'error.connection': '连接失败: {0}',
     'error.openDir': '打开目录失败: {0}',
     'svn.disconnected': 'SVN 未连接',
@@ -285,7 +285,7 @@ const I18N_MESSAGES = {
     'diff.scrollRight': '右侧 {0} 处变更 →',
   },
   en: {
-    'app.title': 'SmartDiff',
+    'app.title': 'SheetMeld',
     'error.connection': 'Connection failed: {0}',
     'error.openDir': 'Failed to open directory: {0}',
     'svn.disconnected': 'SVN disconnected',

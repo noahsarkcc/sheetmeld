@@ -25,7 +25,7 @@
 ## 项目架构
 
 ```
-smartdiff/
+sheetmeld/
 ├── server.py            # Flask 后端，REST API 入口
 ├── xml_parser.py        # SpreadsheetML 2003 解析器
 ├── xlsx_parser.py       # XLSX (Office Open XML) 解析器
@@ -41,7 +41,7 @@ smartdiff/
 ├── build.bat            # PyInstaller 本地打包脚本（与 release.yml 对齐）
 ├── .github/workflows/
 │   ├── test.yml         # CI：3 个 Python 版本跑全量测试
-│   └── release.yml      # 推 v* tag 自动构建并上传 SmartDiff.exe
+│   └── release.yml      # 推 v* tag 自动构建并上传 SheetMeld.exe
 ├── static/              # 前端 SPA（index.html + css + js + img）
 ├── tests/
 │   ├── TESTING.md / TESTING.zh-CN.md   # 测试指南
@@ -173,9 +173,9 @@ smartdiff/
 纯标准库（urllib）实现的检查更新 / 下载 / 自替换模块。
 
 - **代理回退**（`_fetch`）：先直连（超时 8s），失败后用 `PROXY_PREFIX + url`（`github.2436666.xyz`）重试；本次会话记住可用通道（`_use_proxy`），后续请求与下载直接复用
-- **`check_update(current)`**：请求 GitHub `releases/latest`，版本号按 int 元组比较（`v1.3.7` → `(1,3,7)`，位数不齐补零）；从 assets 中找 `SmartDiff.exe` 资产，没有则 `asset_url=None`（前端退化为「打开发布页」）
-- **下载状态机**：模块级单例 `{status: idle|downloading|ready|error, percent, downloaded, total, error, path}`；`start_download` 启动后台线程流式写入 `SmartDiff.exe.new.part`，完成后 `os.replace` 改名 `.new`（沿用原子写思路）
-- **`apply_update()`**（仅 frozen）：在 exe 目录生成自删除的 `smartdiff_update.bat`（循环 `del` 等待旧 exe 解锁 → `move` 替换 → `start` 新 exe），以 `DETACHED_PROCESS` 启动后延迟 `os._exit(0)` 退出旧进程。处理了两个 Windows 坑：启动脚本前会剔除 PyInstaller 引导器环境变量（`_PYI_*` / `_MEIPASS2`），否则重启的新 exe 会误认为自己是已解压的子阶段而启动即崩；脚本等待用 `ping` 而非 `timeout`（后者在 stdin 重定向时可能立即退出）
+- **`check_update(current)`**：请求 GitHub `releases/latest`，版本号按 int 元组比较（`v1.3.7` → `(1,3,7)`，位数不齐补零）；从 assets 中找 `SheetMeld.exe` 资产，没有则 `asset_url=None`（前端退化为「打开发布页」）
+- **下载状态机**：模块级单例 `{status: idle|downloading|ready|error, percent, downloaded, total, error, path}`；`start_download` 启动后台线程流式写入 `SheetMeld.exe.new.part`，完成后 `os.replace` 改名 `.new`（沿用原子写思路）
+- **`apply_update()`**（仅 frozen）：在 exe 目录生成自删除的 `sheetmeld_update.bat`（循环 `del` 等待旧 exe 解锁 → `move` 替换 → `start` 新 exe），以 `DETACHED_PROCESS` 启动后延迟 `os._exit(0)` 退出旧进程。处理了两个 Windows 坑：启动脚本前会剔除 PyInstaller 引导器环境变量（`_PYI_*` / `_MEIPASS2`），否则重启的新 exe 会误认为自己是已解压的子阶段而启动即崩；脚本等待用 `ping` 而非 `timeout`（后者在 stdin 重定向时可能立即退出）
 - **源码模式**：check 可用；download / apply 返回「请用 git pull」提示，不做任何文件操作
 - `config.json` 在 exe 同目录，替换 exe 不影响用户配置
 
@@ -229,9 +229,9 @@ smartdiff/
 
 - **托盘模式（默认）**：`start.bat` 用 `pythonw` 启动 → 无控制台窗口 → 主线程跑 pystray 图标（菜单：打开浏览器 / 显示日志 / 打开工作目录 / 退出），Flask 在后台线程运行；标准输出/错误重定向到 `logs/server.log`（`RotatingFileHandler`，3 × 1 MB）
 - **控制台模式**：`start_console.bat` 或 `python server.py --console` → 保留原始行为，控制台实时显示日志，托盘不启动；用于开发/排错
-- 打包：`SmartDiff.spec` 与 `build.bat` / `.github/workflows/release.yml` 均使用 `--noconsole` + `--hidden-import pystray._win32 / PIL.Image / PIL.ImageDraw`。当 pystray/PIL 不可用时（如未安装依赖），server 自动降级回控制台模式
+- 打包：`SheetMeld.spec` 与 `build.bat` / `.github/workflows/release.yml` 均使用 `--noconsole` + `--hidden-import pystray._win32 / PIL.Image / PIL.ImageDraw`。当 pystray/PIL 不可用时（如未安装依赖），server 自动降级回控制台模式
 
-**国际化（i18n）**：`static/js/i18n.js` 提供轻量 i18n 框架。`I18N.messages` 存放完整的 `zh` / `en` 双语词典。全局函数 `t(key, ...args)` 根据当前语言查表并执行 `{0}`、`{1}` 占位符替换。页面加载时 `I18N.init()` 从 `localStorage`（`smartdiff_lang`）或 `navigator.language` 检测语言。点击顶栏切换按钮调用 `I18N.setLocale()`，保存偏好后对静态 DOM 应用 `data-i18n` / `data-i18n-title` / `data-i18n-placeholder` 属性，并调用 `reRenderAll()` 重新渲染所有动态 UI。原来的静态常量对象（`ROW_STATUS_LABELS`、`CELL_STATUS_LABELS`）已改为 getter 函数（`getRowStatusLabel`、`getCellStatusLabel`），确保标签在渲染时才求值。
+**国际化（i18n）**：`static/js/i18n.js` 提供轻量 i18n 框架。`I18N.messages` 存放完整的 `zh` / `en` 双语词典。全局函数 `t(key, ...args)` 根据当前语言查表并执行 `{0}`、`{1}` 占位符替换。页面加载时 `I18N.init()` 从 `localStorage`（`sheetmeld_lang`）或 `navigator.language` 检测语言。点击顶栏切换按钮调用 `I18N.setLocale()`，保存偏好后对静态 DOM 应用 `data-i18n` / `data-i18n-title` / `data-i18n-placeholder` 属性，并调用 `reRenderAll()` 重新渲染所有动态 UI。原来的静态常量对象（`ROW_STATUS_LABELS`、`CELL_STATUS_LABELS`）已改为 getter 函数（`getRowStatusLabel`、`getCellStatusLabel`），确保标签在渲染时才求值。
 
 **其它细节**：
 
@@ -274,12 +274,12 @@ def validate_workbook(parsed: dict, rules: list) -> list:
 
 ```bash
 pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --noconsole --add-data "static;static" --hidden-import pystray._win32 --hidden-import PIL.Image --hidden-import PIL.ImageDraw --name SmartDiff server.py
+pyinstaller --onefile --noconsole --add-data "static;static" --hidden-import pystray._win32 --hidden-import PIL.Image --hidden-import PIL.ImageDraw --name SheetMeld server.py
 ```
 
-生成的 `dist/SmartDiff.exe` 可独立运行，无需 Python 环境。`config.json` 会在首次启动时自动生成，无需打包进去。
+生成的 `dist/SheetMeld.exe` 可独立运行，无需 Python 环境。`config.json` 会在首次启动时自动生成，无需打包进去。
 
-**发版流程**：先在 `CHANGELOG.zh-CN.md` / `CHANGELOG.md` 写好该版本的 `## vX.Y.Z` 小节，然后推送 `v*` tag（如 `git tag v1.4.0 && git push origin v1.4.0`）。`.github/workflows/release.yml` 会在 Windows runner 上跑全量测试 → PyInstaller 构建 → 用 `.github/release_notes.py` 生成 release 正文 → 把 `SmartDiff.exe` 上传到该 tag 的 GitHub Release。客户端的应用内更新（`updater.py`）即从该资产下载、release 正文即为更新说明。
+**发版流程**：先在 `CHANGELOG.zh-CN.md` / `CHANGELOG.md` 写好该版本的 `## vX.Y.Z` 小节，然后推送 `v*` tag（如 `git tag v1.4.0 && git push origin v1.4.0`）。`.github/workflows/release.yml` 会在 Windows runner 上跑全量测试 → PyInstaller 构建 → 用 `.github/release_notes.py` 生成 release 正文 → 把 `SheetMeld.exe` 上传到该 tag 的 GitHub Release。客户端的应用内更新（`updater.py`）即从该资产下载、release 正文即为更新说明。
 
 **Release 正文约定**（`.github/release_notes.py`）：
 

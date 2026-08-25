@@ -81,7 +81,7 @@ echo     工作副本(MINE) = mine.xml  (本地未提交)
 echo     远程 HEAD     = theirs.xml (r2)
 echo.
 echo   下一步:
-echo     1. 启动 SmartDiff: 双击 start.bat 或运行 python server.py
+echo     1. 启动 SheetMeld: 双击 start.bat 或运行 python server.py
 echo     2. 在头部 + 按钮添加工作区: %WC%
 echo     3. 切换到 "语义合并" tab，选 items.xml 开始
 echo.

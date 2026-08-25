@@ -1,7 +1,7 @@
 @echo off
-title SmartDiff (console)
+title SheetMeld (console)
 echo ========================================
-echo   SmartDiff - Console mode
+echo   SheetMeld - Console mode
 echo ========================================
 echo.
 

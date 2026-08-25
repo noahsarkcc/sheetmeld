@@ -96,10 +96,10 @@ def _release_json(tag="v9.9.9", with_asset=True, notes="notes here"):
     }
     if with_asset:
         info["assets"].append({
-            "name": "SmartDiff.exe",
+            "name": "SheetMeld.exe",
             "size": 12345,
             "browser_download_url":
-                f"https://github.com/{updater.GITHUB_REPO}/releases/download/{tag}/SmartDiff.exe",
+                f"https://github.com/{updater.GITHUB_REPO}/releases/download/{tag}/SheetMeld.exe",
         })
     info["assets"].append({"name": "other.zip", "size": 1,
                            "browser_download_url": "https://example.com/other.zip"})
@@ -192,7 +192,7 @@ def test_check_update_has_update():
     assert r["has_update"] is True
     assert r["latest"] == "9.9.9"
     assert r["current"] == "1.3.7"
-    assert r["asset_url"].endswith("/SmartDiff.exe"), r["asset_url"]
+    assert r["asset_url"].endswith("/SheetMeld.exe"), r["asset_url"]
     assert r["asset_size"] == 12345
     assert r["notes"] == "notes here"
     assert r["proxy_page_url"].startswith(updater.PROXY_PREFIX)
@@ -224,7 +224,7 @@ def test_check_update_no_asset():
 @t("start_download：源码模式直接返回错误状态")
 def test_start_download_source_mode():
     _reset_updater()
-    r = updater.start_download("https://example.com/SmartDiff.exe")
+    r = updater.start_download("https://example.com/SheetMeld.exe")
     assert r["status"] == "error"
     assert "git pull" in r["error"]
 
@@ -233,7 +233,7 @@ def test_start_download_source_mode():
 def test_download_worker():
     _reset_updater()
     workdir = tempfile.mkdtemp(prefix="xmldev_upd_")
-    dest = os.path.join(workdir, "SmartDiff.exe.new")
+    dest = os.path.join(workdir, "SheetMeld.exe.new")
     chunks = [b"a" * 100, b"b" * 100, b""]
 
     def fake_open(url, timeout):
@@ -243,7 +243,7 @@ def test_download_worker():
         with updater._dl_lock:
             updater._dl_state.update(status="downloading", percent=0,
                                      downloaded=0, total=0, error=None, path=None)
-        updater._download_worker("https://example.com/SmartDiff.exe", dest)
+        updater._download_worker("https://example.com/SheetMeld.exe", dest)
 
     state = updater.get_progress()
     assert state["status"] == "ready", state
@@ -261,7 +261,7 @@ def test_download_worker():
 def test_download_worker_error():
     _reset_updater()
     workdir = tempfile.mkdtemp(prefix="xmldev_upd_")
-    dest = os.path.join(workdir, "SmartDiff.exe.new")
+    dest = os.path.join(workdir, "SheetMeld.exe.new")
 
     def fake_open(url, timeout):
         raise OSError("network down")
@@ -269,7 +269,7 @@ def test_download_worker_error():
     # _use_proxy=True 时不再二次回退，直接报错
     updater._use_proxy = True
     with patch.object(updater, "_open", side_effect=fake_open):
-        updater._download_worker("https://example.com/SmartDiff.exe", dest)
+        updater._download_worker("https://example.com/SheetMeld.exe", dest)
 
     state = updater.get_progress()
     assert state["status"] == "error", state
@@ -297,7 +297,7 @@ def test_apply_update_strips_pyi_env():
     # ——表现为"更新完成但程序没有重新拉起"。
     _reset_updater()
     workdir = tempfile.mkdtemp(prefix="xmldev_env_")
-    fake_exe = os.path.join(workdir, "SmartDiff.exe")
+    fake_exe = os.path.join(workdir, "SheetMeld.exe")
     new = fake_exe + ".new"
     with open(new, "wb") as f:
         f.write(b"new")
@@ -314,7 +314,7 @@ def test_apply_update_strips_pyi_env():
         "KEEP_ME": "1",
         "_PYI_APPLICATION_HOME_DIR": r"C:\Temp\_MEI1",
         "_PYI_PARENT_PROCESS_LEVEL": "1",
-        "_PYI_ARCHIVE_FILE": r"C:\Temp\SmartDiff.exe",
+        "_PYI_ARCHIVE_FILE": r"C:\Temp\SheetMeld.exe",
         "_MEIPASS2": r"C:\Temp\_MEI1",
     }
 
@@ -331,7 +331,7 @@ def test_apply_update_strips_pyi_env():
     assert "_MEIPASS2" not in env
     assert env.get("KEEP_ME") == "1"
 
-    bat = os.path.join(workdir, "smartdiff_update.bat")
+    bat = os.path.join(workdir, "sheetmeld_update.bat")
     assert os.path.isfile(bat), "更新脚本未写入 exe 目录"
     os.remove(bat)
     os.remove(new)
@@ -354,13 +354,13 @@ def test_update_bat_swap():
     if os.name != "nt":
         return  # 依赖 cmd/ping/文件锁语义，非 Windows 跳过
     workdir = tempfile.mkdtemp(prefix="xmldev_bat_")
-    exe = os.path.join(workdir, "SmartDiff.exe")
+    exe = os.path.join(workdir, "SheetMeld.exe")
     new = exe + ".new"
     with open(exe, "wb") as f:
         f.write(b"old")
     with open(new, "wb") as f:
         f.write(b"new")
-    bat = os.path.join(workdir, "smartdiff_update.bat")
+    bat = os.path.join(workdir, "sheetmeld_update.bat")
     with open(bat, "w", encoding="gbk", errors="replace") as f:
         f.write(updater._UPDATE_BAT.format(exe=exe, new=new, cwd=workdir,
                                            tries_max=15))
@@ -410,7 +410,7 @@ _FAKE_RESULT = {
     "has_update": True, "current": "1.3.7", "latest": "9.9.9",
     "notes": "n", "html_url": "https://github.com/x",
     "proxy_page_url": updater.PROXY_PREFIX + "https://github.com/x",
-    "asset_url": "https://github.com/x/SmartDiff.exe", "asset_size": 1,
+    "asset_url": "https://github.com/x/SheetMeld.exe", "asset_size": 1,
     "is_frozen": False, "proxy_used": False,
 }
 
@@ -460,7 +460,7 @@ def test_api_check_failure():
 def test_api_download_source_mode():
     _reset_server_cache()
     client = server.app.test_client()
-    r = client.post("/api/update/download", json={"asset_url": "https://x/SmartDiff.exe"})
+    r = client.post("/api/update/download", json={"asset_url": "https://x/SheetMeld.exe"})
     assert r.status_code == 400, r.status_code
     assert "git pull" in r.get_json()["error"]
 

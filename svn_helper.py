@@ -12,7 +12,7 @@ from typing import Optional
 
 
 # Hide the transient console window each subprocess would otherwise pop up
-# when SmartDiff runs in tray (pythonw / --noconsole) mode. Harmless on POSIX.
+# when SheetMeld runs in tray (pythonw / --noconsole) mode. Harmless on POSIX.
 _NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # subprocess.CREATE_NO_WINDOW
 
 
@@ -558,7 +558,7 @@ def _resolve_conflict_sidecar(filepath: str, sidecar: str) -> str:
     """Resolve SVN conflict sidecar paths relative to the conflicted file.
 
     SVN may report sidecars as bare relative names such as ``items.xml.mine``.
-    SmartDiff's process cwd is the app directory, not necessarily the file's
+    SheetMeld's process cwd is the app directory, not necessarily the file's
     folder, so resolve relative names beside the conflicted working-copy file.
     """
     if not sidecar or os.path.isabs(sidecar):

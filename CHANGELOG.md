@@ -2,7 +2,20 @@
 
 **English** · [中文](CHANGELOG.zh-CN.md)
 
-All notable changes to SmartDiff are documented here. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
+All notable changes to SheetMeld are documented here. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
+
+## v1.5.1 (2026-08-25)
+
+Project renamed from SmartDiff to SheetMeld for better discoverability and lower name collision with existing tools.
+
+**Changed**
+- All user-facing references (window titles, UI text, tray tooltip, exe name) now read "SheetMeld"
+- GitHub repository URL updated to `noahsarkcc/sheetmeld`
+- Build output renamed: `SheetMeld.exe`
+- Auto-updater asset and API target updated accordingly
+
+**Unchanged**
+- Internal localStorage keys (`smartdiff_locale`, `smartdiff_diff_view`) kept for backward compatibility
 
 ## v1.5.0 (2026-06-17)
 
@@ -76,12 +89,12 @@ In-app auto-update.
 **New features**
 - In-app update check: 5 seconds after startup the app silently queries GitHub Releases; when a newer version exists, a red dot appears on the settings (gear) button
 - New "Version & Updates" section in the settings dialog: shows the current version, a manual check button and the new release notes
-- One-click update (exe mode): downloads the new `SmartDiff.exe` in the background → shows a progress bar → swaps the executable and restarts → the page reloads on the new version automatically; user config (`config.json`) is untouched
+- One-click update (exe mode): downloads the new `SheetMeld.exe` in the background → shows a progress bar → swaps the executable and restarts → the page reloads on the new version automatically; user config (`config.json`) is untouched
 - When a direct GitHub connection fails, both the check and the download automatically retry through the acceleration proxy (`github.2436666.xyz`); the working channel is remembered for the session
 - When running from source, the dialog suggests `git pull` and offers direct/proxied release page links
 
 **Release infrastructure**
-- New `.github/workflows/release.yml`: pushing a `v*` tag runs the full test suite on Windows, builds with PyInstaller and attaches `SmartDiff.exe` to the release (previous releases had no exe asset; one-click updates are fully closed-loop from this version on)
+- New `.github/workflows/release.yml`: pushing a `v*` tag runs the full test suite on Windows, builds with PyInstaller and attaches `SheetMeld.exe` to the release (previous releases had no exe asset; one-click updates are fully closed-loop from this version on)
 - `build.bat` fixed: installs `requirements.txt` (adds the missing openpyxl/xlrd) and uses the same build flags as CI
 
 **API**
@@ -143,7 +156,7 @@ Reliability hardening release (12 fixes from a full code review).
 **Internationalization (i18n)**
 - Web UI now supports both English and Chinese with a one-click toggle in the header
 - Auto-detects browser language on first visit (zh-* → Chinese, otherwise English)
-- User selection is persisted to localStorage (`smartdiff_locale`)
+- User selection is persisted to localStorage (`sheetmeld_locale`)
 - Bilingual coverage: header, sidebar, all four diff modes, semantic merge UI, SVN conflict dialog, alerts, error messages
 
 **Documentation**

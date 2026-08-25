@@ -1,15 +1,15 @@
-# SmartDiff
+# SheetMeld
 
 [English](README.md) · **中文**
 
-[![License](https://img.shields.io/github/license/noahsarkcc/smartdiff)](LICENSE)
+[![License](https://img.shields.io/github/license/noahsarkcc/sheetmeld)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue)](https://www.python.org/downloads/)
-[![Tests](https://github.com/noahsarkcc/smartdiff/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/smartdiff/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/noahsarkcc/smartdiff)](https://github.com/noahsarkcc/smartdiff/releases)
+[![Tests](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/noahsarkcc/sheetmeld)](https://github.com/noahsarkcc/sheetmeld/releases)
 
 > **v1.5.0** · 面向表格配置的语义化 Diff 与三方合并工具
 
-SmartDiff 是一个零依赖、可本地运行的表格 Diff 工具，专为以 Excel 表格（`.xml` / `.xlsx` / `.xls`）维护的结构化配置数据而设计。它自动过滤样式、窗口状态、列宽等元数据噪音，**只呈现真正的数据变更**，并提供基于行 ID 的智能匹配、单元格级三方语义合并，以及可选的 SVN 版本集成。
+SheetMeld 是一个零依赖、可本地运行的表格 Diff 工具，专为以 Excel 表格（`.xml` / `.xlsx` / `.xls`）维护的结构化配置数据而设计。它自动过滤样式、窗口状态、列宽等元数据噪音，**只呈现真正的数据变更**，并提供基于行 ID 的智能匹配、单元格级三方语义合并，以及可选的 SVN 版本集成。
 
 - 解析与 Diff 支持 `.xml`（SpreadsheetML 2003）、`.xlsx`（Office Open XML）和 `.xls`
 - 单元格级三方语义合并当前仅支持 `.xml`
@@ -22,19 +22,19 @@ SmartDiff 是一个零依赖、可本地运行的表格 Diff 工具，专为以 
 **本地变更** — 只高亮真正的数据变更：绿色行为新增，红色行为删除，黄色单元格为修改（旧值 → 新值）。
 
 <p align="center">
-  <img src="assets/1.png" alt="SmartDiff 本地变更模式" width="900">
+  <img src="assets/1.png" alt="SheetMeld 本地变更模式" width="900">
 </p>
 
 **版本总览** — GitHub 风格的 "Files changed"，一次查看两个版本间所有文件的变更；图中为分行视图（旧值在上、新值在下）。
 
 <p align="center">
-  <img src="assets/2.png" alt="SmartDiff 版本总览模式" width="900">
+  <img src="assets/2.png" alt="SheetMeld 版本总览模式" width="900">
 </p>
 
 **语义合并** — 基于 `BASE / 本地 / 远程` 的单元格级 + 行级三方决议，结果写回原始 `.xml`。
 
 <p align="center">
-  <img src="assets/3.png" alt="SmartDiff 语义合并模式" width="900">
+  <img src="assets/3.png" alt="SheetMeld 语义合并模式" width="900">
 </p>
 
 ---
@@ -69,7 +69,7 @@ SmartDiff 是一个零依赖、可本地运行的表格 Diff 工具，专为以 
 
 ### 方式一：直接下载 exe（推荐）
 
-从 [Releases](https://github.com/noahsarkcc/smartdiff/releases) 下载最新的 `SmartDiff.exe`，双击即可运行，无需安装 Python。后续有新版本时可在应用内一键更新。
+从 [Releases](https://github.com/noahsarkcc/sheetmeld/releases) 下载最新的 `SheetMeld.exe`，双击即可运行，无需安装 Python。后续有新版本时可在应用内一键更新。
 
 ### 方式二：源码运行
 

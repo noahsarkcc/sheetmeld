@@ -1,5 +1,5 @@
 @echo off
-REM SmartDiff launcher (tray mode, no console window).
+REM SheetMeld launcher (tray mode, no console window).
 REM For a console session with live logs run start_console.bat instead.
 
 cd /d "%~dp0"

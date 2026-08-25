@@ -887,7 +887,7 @@ def test_log_view_no_file():
     log file does not exist yet (e.g. fresh install, console-only run)."""
     client = server.app.test_client()
     with patch("server._log_path", return_value=os.path.join(tempfile.gettempdir(),
-                                                              "smartdiff-no-such-file.log")):
+                                                              "sheetmeld-no-such-file.log")):
         r = client.get("/log")
     assert r.status_code == 200, f"unexpected status {r.status_code}"
     ctype = r.headers.get("Content-Type", "")

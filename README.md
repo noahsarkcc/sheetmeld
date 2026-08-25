@@ -1,15 +1,15 @@
-# SmartDiff
+# SheetMeld
 
 **English** · [中文](README.zh-CN.md)
 
-[![License](https://img.shields.io/github/license/noahsarkcc/smartdiff)](LICENSE)
+[![License](https://img.shields.io/github/license/noahsarkcc/sheetmeld)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue)](https://www.python.org/downloads/)
-[![Tests](https://github.com/noahsarkcc/smartdiff/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/smartdiff/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/noahsarkcc/smartdiff)](https://github.com/noahsarkcc/smartdiff/releases)
+[![Tests](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/noahsarkcc/sheetmeld)](https://github.com/noahsarkcc/sheetmeld/releases)
 
 > **v1.5.0** · Semantic diff and three-way merge for spreadsheet-based configuration data
 
-SmartDiff is a zero-dependency, locally-runnable diff tool for structured configuration data maintained as Excel spreadsheets (`.xml` / `.xlsx` / `.xls`). It automatically filters out style, window-state, and column-width noise to show **only the real data changes**, with ID-based smart row matching, cell-level three-way semantic merge, and optional SVN integration.
+SheetMeld is a zero-dependency, locally-runnable diff tool for structured configuration data maintained as Excel spreadsheets (`.xml` / `.xlsx` / `.xls`). It automatically filters out style, window-state, and column-width noise to show **only the real data changes**, with ID-based smart row matching, cell-level three-way semantic merge, and optional SVN integration.
 
 - Parsing and diffing support `.xml` (SpreadsheetML 2003), `.xlsx` (Office Open XML), and `.xls`
 - Cell-level three-way semantic merge currently supports `.xml` only
@@ -22,19 +22,19 @@ SmartDiff is a zero-dependency, locally-runnable diff tool for structured config
 **Local changes** — only the real data changes are highlighted: green rows added, red rows deleted, yellow cells modified (old → new).
 
 <p align="center">
-  <img src="assets/1.png" alt="SmartDiff local changes mode" width="900">
+  <img src="assets/1.png" alt="SheetMeld local changes mode" width="900">
 </p>
 
 **Overview** — GitHub-style "Files changed" across two revisions, showing every changed file at once; pictured in split view (old value above, new value below).
 
 <p align="center">
-  <img src="assets/2.png" alt="SmartDiff overview mode" width="900">
+  <img src="assets/2.png" alt="SheetMeld overview mode" width="900">
 </p>
 
 **Semantic merge** — cell- and row-level three-way resolution over `BASE / MINE / THEIRS`, written back to the original `.xml`.
 
 <p align="center">
-  <img src="assets/3.png" alt="SmartDiff semantic merge mode" width="900">
+  <img src="assets/3.png" alt="SheetMeld semantic merge mode" width="900">
 </p>
 
 ---
@@ -69,7 +69,7 @@ SmartDiff is a zero-dependency, locally-runnable diff tool for structured config
 
 ### Option 1: Download the exe (recommended)
 
-Download the latest `SmartDiff.exe` from [Releases](https://github.com/noahsarkcc/smartdiff/releases) and double-click to run — no Python required. When a new version is released, you can update with one click from inside the app.
+Download the latest `SheetMeld.exe` from [Releases](https://github.com/noahsarkcc/sheetmeld/releases) and double-click to run — no Python required. When a new version is released, you can update with one click from inside the app.
 
 ### Option 2: Run from source
 

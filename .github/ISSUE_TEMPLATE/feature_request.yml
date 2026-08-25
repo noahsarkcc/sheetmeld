@@ -15,7 +15,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: How would you like SmartDiff to behave? Mockups or pseudo-API are welcome.
+      description: How would you like SheetMeld to behave? Mockups or pseudo-API are welcome.
     validations:
       required: true
 

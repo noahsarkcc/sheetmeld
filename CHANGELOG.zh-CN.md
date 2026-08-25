@@ -2,7 +2,20 @@
 
 [English](CHANGELOG.md) · **中文**
 
-SmartDiff 的所有重要变更都记录在这里，格式大致遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 风格。
+SheetMeld 的所有重要变更都记录在这里，格式大致遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 风格。
+
+## v1.5.1（2026-08-25）
+
+项目从 SmartDiff 重命名为 SheetMeld，降低同名竞争、提高搜索辨识度。
+
+**变更**
+- 所有用户可见引用（窗口标题、UI 文字、托盘提示、exe 名称）已改为 "SheetMeld"
+- GitHub 仓库地址更新为 `noahsarkcc/sheetmeld`
+- 构建产出重命名：`SheetMeld.exe`
+- 自动更新模块的资源名和 API 目标同步更新
+
+**未变更**
+- 内部 localStorage key（`smartdiff_locale`、`smartdiff_diff_view`）保持不变，兼容已有用户偏好
 
 ## v1.5.0（2026-06-17）
 
@@ -76,12 +89,12 @@ Diff 表格显示修复。
 **新功能**
 - 应用内检查更新：启动 5 秒后静默检查 GitHub Releases，发现新版本时设置按钮（齿轮）显示红点提示
 - 设置弹窗新增「版本与更新」区：显示当前版本、手动检查更新、查看新版本说明
-- 一键更新（exe 模式）：后台下载新版 `SmartDiff.exe` → 显示进度条 → 自动替换并重启 → 页面自动刷新到新版本；`config.json` 等用户配置不受影响
+- 一键更新（exe 模式）：后台下载新版 `SheetMeld.exe` → 显示进度条 → 自动替换并重启 → 页面自动刷新到新版本；`config.json` 等用户配置不受影响
 - GitHub 直连失败时自动走加速代理（`github.2436666.xyz`）重试，检查与下载均支持；会话内记住可用通道
 - 源码模式运行时提示使用 `git pull` 更新，并提供发布页直连/加速双链接
 
 **发版基建**
-- 新增 `.github/workflows/release.yml`：推送 `v*` tag 自动在 Windows 上跑全量测试、PyInstaller 构建并把 `SmartDiff.exe` 上传到对应 release（此前 release 无 exe 资产，一键更新自此版本起闭环）
+- 新增 `.github/workflows/release.yml`：推送 `v*` tag 自动在 Windows 上跑全量测试、PyInstaller 构建并把 `SheetMeld.exe` 上传到对应 release（此前 release 无 exe 资产，一键更新自此版本起闭环）
 - 修正 `build.bat`：依赖改为安装 `requirements.txt`（补齐 openpyxl/xlrd），构建参数与 CI 对齐
 
 **API**
@@ -143,7 +156,7 @@ Diff 表格显示修复。
 **国际化（i18n）**
 - Web UI 新增中英文双语切换，Header 一键切换
 - 首次访问自动检测浏览器语言（zh-* → 中文，其他 → 英文）
-- 用户选择通过 localStorage (`smartdiff_locale`) 持久化
+- 用户选择通过 localStorage (`sheetmeld_locale`) 持久化
 - 覆盖范围：标题栏、侧栏、四种 Diff 模式、语义合并 UI、SVN 冲突弹窗、所有 alert 和错误提示
 
 **文档**

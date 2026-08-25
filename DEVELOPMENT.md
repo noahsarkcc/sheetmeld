@@ -25,7 +25,7 @@
 ## Project Layout
 
 ```
-smartdiff/
+sheetmeld/
 ├── server.py            # Flask backend, REST API entry point
 ├── xml_parser.py        # SpreadsheetML 2003 parser
 ├── xlsx_parser.py       # XLSX (Office Open XML) parser
@@ -41,7 +41,7 @@ smartdiff/
 ├── build.bat            # Local PyInstaller build script (kept in sync with release.yml)
 ├── .github/workflows/
 │   ├── test.yml         # CI: full test suite on 3 Python versions
-│   └── release.yml      # Pushing a v* tag builds and uploads SmartDiff.exe
+│   └── release.yml      # Pushing a v* tag builds and uploads SheetMeld.exe
 ├── static/              # Frontend SPA (index.html + css + js + img)
 ├── tests/
 │   ├── TESTING.md / TESTING.zh-CN.md   # Testing guides
@@ -173,9 +173,9 @@ Wraps the SVN CLI and handles encoding.
 Update check / download / self-replace, implemented with the standard library only (urllib).
 
 - **Proxy fallback** (`_fetch`): try a direct connection first (8s timeout); on failure retry via `PROXY_PREFIX + url` (`github.2436666.xyz`). The working channel is remembered for the session (`_use_proxy`) and reused for subsequent requests and the download
-- **`check_update(current)`**: queries GitHub `releases/latest`; versions are compared as int tuples (`v1.3.7` → `(1,3,7)`, zero-padded to equal length); the `SmartDiff.exe` asset is looked up in the release assets, `asset_url=None` when missing (the UI degrades to "Open Release Page")
-- **Download state machine**: a module-level singleton `{status: idle|downloading|ready|error, percent, downloaded, total, error, path}`; `start_download` spawns a background thread that streams into `SmartDiff.exe.new.part` and `os.replace`s it to `.new` on completion (same atomic-write idea as the merge write-back)
-- **`apply_update()`** (frozen only): writes a self-deleting `smartdiff_update.bat` next to the exe (loops `del` until the old exe is unlocked → `move` the new one in → `start` it), launches it with `DETACHED_PROCESS` and exits the old process via a delayed `os._exit(0)`. Two Windows pitfalls are handled: the helper's environment is stripped of PyInstaller bootloader variables (`_PYI_*` / `_MEIPASS2`), otherwise the relaunched exe mistakes itself for the extracted child stage and crashes on startup; and the script waits with `ping` rather than `timeout`, which can exit immediately when stdin is redirected
+- **`check_update(current)`**: queries GitHub `releases/latest`; versions are compared as int tuples (`v1.3.7` → `(1,3,7)`, zero-padded to equal length); the `SheetMeld.exe` asset is looked up in the release assets, `asset_url=None` when missing (the UI degrades to "Open Release Page")
+- **Download state machine**: a module-level singleton `{status: idle|downloading|ready|error, percent, downloaded, total, error, path}`; `start_download` spawns a background thread that streams into `SheetMeld.exe.new.part` and `os.replace`s it to `.new` on completion (same atomic-write idea as the merge write-back)
+- **`apply_update()`** (frozen only): writes a self-deleting `sheetmeld_update.bat` next to the exe (loops `del` until the old exe is unlocked → `move` the new one in → `start` it), launches it with `DETACHED_PROCESS` and exits the old process via a delayed `os._exit(0)`. Two Windows pitfalls are handled: the helper's environment is stripped of PyInstaller bootloader variables (`_PYI_*` / `_MEIPASS2`), otherwise the relaunched exe mistakes itself for the extracted child stage and crashes on startup; and the script waits with `ping` rather than `timeout`, which can exit immediately when stdin is redirected
 - **Source mode**: check works; download/apply return a "use git pull" message and touch nothing
 - `config.json` lives next to the exe, so swapping the executable never affects user config
 
@@ -229,9 +229,9 @@ Every endpoint accepting a `file` parameter goes through `_safe_workspace_path`:
 
 - **Tray mode (default)**: `start.bat` launches via `pythonw` → no console window → the main thread runs the pystray icon (menu: Open browser / Show log / Open workspace / Quit), Flask runs on a background thread; stdout/stderr are redirected to `logs/server.log` (`RotatingFileHandler`, 3 × 1 MB)
 - **Console mode**: `start_console.bat` or `python server.py --console` → preserves the original behaviour, console shows live logs and the tray icon is skipped; intended for development / troubleshooting
-- Packaging: `SmartDiff.spec`, `build.bat` and `.github/workflows/release.yml` all use `--noconsole` + `--hidden-import pystray._win32 / PIL.Image / PIL.ImageDraw`. When pystray/PIL are unavailable (e.g. missing deps), the server falls back to console mode automatically
+- Packaging: `SheetMeld.spec`, `build.bat` and `.github/workflows/release.yml` all use `--noconsole` + `--hidden-import pystray._win32 / PIL.Image / PIL.ImageDraw`. When pystray/PIL are unavailable (e.g. missing deps), the server falls back to console mode automatically
 
-**Internationalization (i18n)**: `static/js/i18n.js` provides a lightweight i18n framework. `I18N.messages` holds complete `zh` and `en` dictionaries. The global `t(key, ...args)` function looks up the current locale and performs `{0}`, `{1}` placeholder replacement. On load, `I18N.init()` detects the locale from `localStorage` (`smartdiff_lang`) or `navigator.language`. Clicking the header's language toggle calls `I18N.setLocale()`, which saves the preference, applies `data-i18n` / `data-i18n-title` / `data-i18n-placeholder` attributes on static DOM elements, and calls `reRenderAll()` to regenerate all dynamic UI. Constants that used to be static objects (`ROW_STATUS_LABELS`, `CELL_STATUS_LABELS`) are now getter functions (`getRowStatusLabel`, `getCellStatusLabel`) so labels are evaluated at render time.
+**Internationalization (i18n)**: `static/js/i18n.js` provides a lightweight i18n framework. `I18N.messages` holds complete `zh` and `en` dictionaries. The global `t(key, ...args)` function looks up the current locale and performs `{0}`, `{1}` placeholder replacement. On load, `I18N.init()` detects the locale from `localStorage` (`sheetmeld_lang`) or `navigator.language`. Clicking the header's language toggle calls `I18N.setLocale()`, which saves the preference, applies `data-i18n` / `data-i18n-title` / `data-i18n-placeholder` attributes on static DOM elements, and calls `reRenderAll()` to regenerate all dynamic UI. Constants that used to be static objects (`ROW_STATUS_LABELS`, `CELL_STATUS_LABELS`) are now getter functions (`getRowStatusLabel`, `getCellStatusLabel`) so labels are evaluated at render time.
 
 **Other UI details**:
 
@@ -274,12 +274,12 @@ Run `build.bat` for a local build, which is equivalent to:
 
 ```bash
 pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --noconsole --add-data "static;static" --hidden-import pystray._win32 --hidden-import PIL.Image --hidden-import PIL.ImageDraw --name SmartDiff server.py
+pyinstaller --onefile --noconsole --add-data "static;static" --hidden-import pystray._win32 --hidden-import PIL.Image --hidden-import PIL.ImageDraw --name SheetMeld server.py
 ```
 
-The resulting `dist/SmartDiff.exe` runs standalone, no Python required. `config.json` is generated on first launch — don't bundle it.
+The resulting `dist/SheetMeld.exe` runs standalone, no Python required. `config.json` is generated on first launch — don't bundle it.
 
-**Release flow**: write the `## vX.Y.Z` section in `CHANGELOG.zh-CN.md` / `CHANGELOG.md` first, then push a `v*` tag (e.g. `git tag v1.4.0 && git push origin v1.4.0`). `.github/workflows/release.yml` runs the full test suite on a Windows runner, builds with PyInstaller, generates the release body via `.github/release_notes.py`, and attaches `SmartDiff.exe` to the GitHub Release. The in-app updater (`updater.py`) downloads exactly that asset and shows the release body as update notes.
+**Release flow**: write the `## vX.Y.Z` section in `CHANGELOG.zh-CN.md` / `CHANGELOG.md` first, then push a `v*` tag (e.g. `git tag v1.4.0 && git push origin v1.4.0`). `.github/workflows/release.yml` runs the full test suite on a Windows runner, builds with PyInstaller, generates the release body via `.github/release_notes.py`, and attaches `SheetMeld.exe` to the GitHub Release. The in-app updater (`updater.py`) downloads exactly that asset and shows the release body as update notes.
 
 **Release body conventions** (`.github/release_notes.py`):
 

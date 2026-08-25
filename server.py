@@ -1,8 +1,8 @@
 """
-Flask server for SmartDiff.
+Flask server for SheetMeld.
 Provides REST API for parsing, diffing, and SVN integration.
 """
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 import os
 import sys
@@ -34,7 +34,7 @@ except Exception:
 # Module-level logger for business INFO records (workspace switch, merge
 # preview/apply, svn update). Wired up by setup_logging() later in the file;
 # safe to reference at import time because logging.getLogger is global.
-logger = logging.getLogger("smartdiff")
+logger = logging.getLogger("sheetmeld")
 
 
 SUPPORTED_EXTENSIONS = (".xml", ".xlsx", ".xls")
@@ -360,7 +360,7 @@ def view_log():
     """
     path = _log_path()
     if not os.path.isfile(path):
-        body = ("<!doctype html><meta charset='utf-8'><title>SmartDiff \u65e5\u5fd7</title>"
+        body = ("<!doctype html><meta charset='utf-8'><title>SheetMeld \u65e5\u5fd7</title>"
                 f"<body style='background:#0d1117;color:#c9d1d9;font:13px monospace;padding:16px'>"
                 f"\u65e5\u5fd7\u6587\u4ef6\u4e0d\u5b58\u5728\uff1a{html.escape(path)}</body>")
         return (body, 200, {"Content-Type": "text/html; charset=utf-8"})
@@ -368,7 +368,7 @@ def view_log():
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             lines = f.read().splitlines()
     except OSError as e:
-        body = ("<!doctype html><meta charset='utf-8'><title>SmartDiff \u65e5\u5fd7</title>"
+        body = ("<!doctype html><meta charset='utf-8'><title>SheetMeld \u65e5\u5fd7</title>"
                 f"<body style='background:#0d1117;color:#c9d1d9;font:13px monospace;padding:16px'>"
                 f"\u8bfb\u53d6\u65e5\u5fd7\u5931\u8d25\uff1a{html.escape(str(e))}</body>")
         return (body, 500, {"Content-Type": "text/html; charset=utf-8"})
@@ -379,7 +379,7 @@ def view_log():
     page = (
         "<!doctype html><html lang=\"zh-CN\"><head>"
         "<meta charset=\"utf-8\"><meta http-equiv=\"refresh\" content=\"5\">"
-        "<title>SmartDiff \u65e5\u5fd7</title><style>"
+        "<title>SheetMeld \u65e5\u5fd7</title><style>"
         "html,body{margin:0;padding:0;background:#0d1117;color:#c9d1d9;"
         "font:13px/1.5 Consolas,Menlo,\"Cascadia Mono\",monospace;}"
         "header{position:sticky;top:0;background:#161b22;padding:8px 14px;"
@@ -391,7 +391,7 @@ def view_log():
         "pre{white-space:pre-wrap;word-break:break-all;margin:0;padding:8px 14px;}"
         "</style></head><body>"
         "<header>"
-        "<b>SmartDiff \u65e5\u5fd7</b>"
+        "<b>SheetMeld \u65e5\u5fd7</b>"
         f"<span class=\"path\">{html.escape(path)}</span>"
         f"<span>{len(lines)} \u884c \u00b7 {size:,} \u5b57\u8282 \u00b7 \u6700\u540e\u4fee\u6539 {html.escape(mtime)}</span>"
         "<span class=\"hint\">\u6700\u65b0\u65f6\u95f4\u5728\u9876 \u00b7 5 \u79d2\u81ea\u52a8\u5237\u65b0</span>"
@@ -1362,7 +1362,7 @@ def _configure_file_logging(log_path: str, redirect_stdio: bool):
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
     if redirect_stdio:
-        logger = logging.getLogger("smartdiff")
+        logger = logging.getLogger("sheetmeld")
         sys.stdout = _StreamToLogger(logger, logging.INFO)
         sys.stderr = _StreamToLogger(logger, logging.ERROR)
 
@@ -1381,7 +1381,7 @@ def _main():
     log_path = _log_path()
     _configure_file_logging(log_path, redirect_stdio=use_tray)
 
-    print(f"SmartDiff starting on http://localhost:{port}")
+    print(f"SheetMeld starting on http://localhost:{port}")
     print(f"Work directory: {_get_work_dir()}")
     print(f"SVN: {'available' if svn_helper.is_available() else 'not found'}")
     print(f"Tray: {'enabled' if use_tray else 'disabled (console mode)'}")

@@ -1,7 +1,7 @@
 """
-In-app auto-update for SmartDiff.
+In-app auto-update for SheetMeld.
 
-Checks GitHub Releases for a newer version, downloads the SmartDiff.exe
+Checks GitHub Releases for a newer version, downloads the SheetMeld.exe
 asset and self-replaces the running executable (PyInstaller frozen mode).
 
 Network access uses only the standard library (urllib). If a direct
@@ -19,12 +19,12 @@ import subprocess
 import urllib.request
 import urllib.error
 
-GITHUB_REPO = "noahsarkcc/smartdiff"
+GITHUB_REPO = "noahsarkcc/sheetmeld"
 PROXY_PREFIX = "https://github.2436666.xyz/"
 LATEST_API_URL = "https://api.github.com/repos/%s/releases/latest" % GITHUB_REPO
 RELEASES_PAGE_URL = "https://github.com/%s/releases" % GITHUB_REPO
-ASSET_NAME = "SmartDiff.exe"
-USER_AGENT = "SmartDiff-Updater"
+ASSET_NAME = "SheetMeld.exe"
+USER_AGENT = "SheetMeld-Updater"
 FETCH_TIMEOUT = 8
 DOWNLOAD_TIMEOUT = 30
 CHUNK_SIZE = 64 * 1024
@@ -208,7 +208,7 @@ def start_download(asset_url: str, dest_dir: str = None) -> dict:
 # ---------------------------------------------------------------------------
 
 _UPDATE_BAT = r"""@echo off
-rem SmartDiff self-update helper (auto-generated, self-deleting)
+rem SheetMeld self-update helper (auto-generated, self-deleting)
 rem NOTE: the 1s delay uses ping because timeout.exe exits immediately
 rem ("input redirection is not supported") when launched with stdin
 rem redirected to NUL, which is how apply_update() starts this script.
@@ -244,7 +244,7 @@ def apply_update(exit_delay: float = 1.5) -> dict:
 
     exe = sys.executable
     exe_dir = os.path.dirname(exe)
-    bat_path = os.path.join(exe_dir, "smartdiff_update.bat")
+    bat_path = os.path.join(exe_dir, "sheetmeld_update.bat")
     script = _UPDATE_BAT.format(exe=exe, new=state["path"], cwd=exe_dir, tries_max=60)
     with open(bat_path, "w", encoding="gbk", errors="replace") as f:
         f.write(script)

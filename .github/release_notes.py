@@ -14,7 +14,7 @@ Usage:
 import re
 import sys
 
-REPO = "noahsarkcc/smartdiff"
+REPO = "noahsarkcc/sheetmeld"
 CHANGELOG = "CHANGELOG.md"
 
 # Bold subsection titles that are developer/infra detail, not user-facing.

@@ -1,8 +1,8 @@
-# Contributing to SmartDiff
+# Contributing to SheetMeld
 
 **English** · [中文](#贡献指南)
 
-Thanks for taking the time to consider contributing! SmartDiff is a small, focused tool — contributions, bug reports, and discussions are all welcome.
+Thanks for taking the time to consider contributing! SheetMeld is a small, focused tool — contributions, bug reports, and discussions are all welcome.
 
 ## How to contribute
 
@@ -45,9 +45,9 @@ Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.yml). Please inc
 
 # 贡献指南
 
-[English](#contributing-to-smartdiff) · **中文**
+[English](#contributing-to-sheetmeld) · **中文**
 
-感谢你愿意为 SmartDiff 做贡献！这是一个小而专注的工具，欢迎 bug 报告、PR 和讨论。
+感谢你愿意为 SheetMeld 做贡献！这是一个小而专注的工具，欢迎 bug 报告、PR 和讨论。
 
 ## 贡献流程
 

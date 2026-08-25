@@ -1,7 +1,7 @@
 @echo off
-title SmartDiff - Build
+title SheetMeld - Build
 echo ========================================
-echo   SmartDiff - PyInstaller Build
+echo   SheetMeld - PyInstaller Build
 echo ========================================
 echo.
 
@@ -23,7 +23,7 @@ REM Clean previous build
 echo [2/3] Cleaning previous build...
 if exist dist rmdir /s /q dist
 if exist build rmdir /s /q build
-if exist SmartDiff.spec del SmartDiff.spec
+if exist SheetMeld.spec del SheetMeld.spec
 
 REM Build (keep in sync with .github/workflows/release.yml)
 REM All local modules (xml_parser, xml_differ, xml_merger, xlsx_parser,
@@ -32,7 +32,7 @@ REM PyInstaller bundles them automatically. pystray's platform backend is
 REM picked dynamically and must be declared as a hidden import.
 echo [3/3] Building executable...
 pyinstaller --noconfirm --onefile --noconsole ^
-    --name SmartDiff ^
+    --name SheetMeld ^
     --add-data "static;static" ^
     --hidden-import pystray._win32 ^
     --hidden-import PIL.Image ^
@@ -49,10 +49,10 @@ if %errorlevel% neq 0 (
 echo.
 echo ========================================
 echo   Build complete!
-echo   Output: dist\SmartDiff.exe
+echo   Output: dist\SheetMeld.exe
 echo ========================================
 echo.
-echo To distribute, copy dist\SmartDiff.exe to the target machine.
+echo To distribute, copy dist\SheetMeld.exe to the target machine.
 echo The exe is fully standalone - no Python needed.
 echo.
 pause
