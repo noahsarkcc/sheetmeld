@@ -4,7 +4,7 @@
 
 All notable changes to SheetMeld are documented here. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
-## Unreleased
+## v1.5.2 (2026-09-05)
 
 Safer spreadsheet merges and clearer conflict handling.
 

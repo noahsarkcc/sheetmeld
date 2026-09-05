@@ -4,7 +4,7 @@
 
 SheetMeld 的所有重要变更都记录在这里，格式大致遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 风格。
 
-## 未发布
+## v1.5.2（2026-09-05）
 
 更可靠的表格合并，更清楚的冲突处理。
 
