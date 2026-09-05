@@ -50,6 +50,9 @@ sheetmeld/
 │   ├── test_updater.py                 # updater + /api/update/* tests (23 cases)
 │   ├── test_api_merge.py               # HTTP API + mock SVN end-to-end (28 cases)
 │   ├── setup_demo_svn.bat              # Bootstrap a demo SVN repo for manual UI tests
+│   ├── test_regressions.py             # XML/API regressions (10 cases)
+│   ├── test_svn_update.py              # Real SVN integration (9 cases)
+│   ├── test_frontend.js                # Rendering + localization (12 cases)
 │   └── data/                           # Three-way fixtures: base.xml / mine.xml / theirs.xml
 ├── README.md / README.zh-CN.md
 └── DEVELOPMENT.md / DEVELOPMENT.zh-CN.md
@@ -282,6 +285,8 @@ The resulting `dist/SheetMeld.exe` runs standalone, no Python required. `config.
 
 **Release flow**: write the `## vX.Y.Z` section in `CHANGELOG.zh-CN.md` / `CHANGELOG.md` first, then push a `v*` tag (e.g. `git tag v1.4.0 && git push origin v1.4.0`). `.github/workflows/release.yml` runs the full test suite on a Windows runner, builds with PyInstaller, generates the release body via `.github/release_notes.py`, and attaches `SheetMeld.exe` to the GitHub Release. The in-app updater (`updater.py`) downloads exactly that asset and shows the release body as update notes.
 
+Pending local changes may stay under `Unreleased` / `未发布`; the release generator does not publish those sections. Before a release, move them to the dated version sections and align `server.py::__version__`, both README version banners, and the release tag. A local commit alone does not create an app update.
+
 **Release body conventions** (`.github/release_notes.py`):
 
 - English only — the section is taken from `CHANGELOG.md`; the Chinese changelog stays in-repo
@@ -307,7 +312,16 @@ python tests\test_updater.py    # 23 cases
 # 4) HTTP API end-to-end (mock SVN)
 python tests\test_api_merge.py  # 28 cases
 
-# 5) Manual UI testing (requires the svn CLI)
+# 5) XML/API regressions
+python tests\test_regressions.py  # 10 cases
+
+# 6) Real SVN integration (requires svn + svnadmin)
+python tests\test_svn_update.py   # 9 cases
+
+# 7) Frontend rendering and localization (requires Node.js 22+)
+node --test tests/test_frontend.js # 12 cases
+
+# 8) Manual UI testing (requires the svn CLI)
 tests\setup_demo_svn.bat        # Creates a three-way aligned demo repo at %TEMP%\xmldev_demo_svn\
 start.bat                       # Then add the wc directory as a workspace from the header
 ```

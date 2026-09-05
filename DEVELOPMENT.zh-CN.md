@@ -50,6 +50,9 @@ sheetmeld/
 │   ├── test_updater.py                 # updater + /api/update/* 测试（23 用例）
 │   ├── test_api_merge.py               # HTTP API + mock SVN 端到端（28 用例）
 │   ├── setup_demo_svn.bat              # 一键搭建 SVN 演示仓库供手工 UI 测试
+│   ├── test_regressions.py             # XML/API 回归（10 用例）
+│   ├── test_svn_update.py              # 真实 SVN 集成（9 用例）
+│   ├── test_frontend.js                # 渲染与语言（12 用例）
 │   └── data/                           # 三方测试数据：base.xml / mine.xml / theirs.xml
 ├── README.md / README.zh-CN.md
 └── DEVELOPMENT.md / DEVELOPMENT.zh-CN.md
@@ -282,6 +285,8 @@ pyinstaller --onefile --noconsole --add-data "static;static" --hidden-import pys
 
 **发版流程**：先在 `CHANGELOG.zh-CN.md` / `CHANGELOG.md` 写好该版本的 `## vX.Y.Z` 小节，然后推送 `v*` tag（如 `git tag v1.4.0 && git push origin v1.4.0`）。`.github/workflows/release.yml` 会在 Windows runner 上跑全量测试 → PyInstaller 构建 → 用 `.github/release_notes.py` 生成 release 正文 → 把 `SheetMeld.exe` 上传到该 tag 的 GitHub Release。客户端的应用内更新（`updater.py`）即从该资产下载、release 正文即为更新说明。
 
+仅提交到本地、尚未发版的改动可保留在 `Unreleased` / `未发布` 下，发布脚本不会提取这些内容。正式发版前，再整理为带日期的版本小节，并对齐 `server.py::__version__`、两份 README 的版本标识和发布 tag。只做本地 commit 不会产生应用更新。
+
 **Release 正文约定**（`.github/release_notes.py`）：
 
 - 只取英文 `CHANGELOG.md` 的对应小节；中文版仅保留在仓库内
@@ -307,7 +312,16 @@ python tests\test_updater.py    # 23 用例
 # 4) HTTP API 端到端（mock SVN）
 python tests\test_api_merge.py  # 28 用例
 
-# 5) 手工 UI 测试（需要 svn CLI）
+# 5) XML/API 回归
+python tests\test_regressions.py  # 10 用例
+
+# 6) 真实 SVN 集成（需要 svn + svnadmin）
+python tests\test_svn_update.py   # 9 用例
+
+# 7) 前端渲染和语言（需要 Node.js 22+）
+node --test tests/test_frontend.js # 12 用例
+
+# 8) 手工 UI 测试（需要 svn CLI）
 tests\setup_demo_svn.bat        # 在 %TEMP%\xmldev_demo_svn\ 搭一个三方对齐的演示仓库
 start.bat                       # 然后在头部添加 wc 目录作为工作区
 ```

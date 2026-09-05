@@ -6,13 +6,26 @@ All notable changes to SheetMeld are documented here. Format roughly follows [Ke
 
 ## Unreleased
 
-- Localize worksheet-structure merge guards in Chinese and English, including language changes while an error is already displayed.
-- Preserve semantic merge results across SVN updates: restore clean bytes after advancing BASE, then resolve text conflicts; retain recovery copies on failure.
-- Make “use latest” replace local content and “skip” preserve both content and BASE. Detect pending updates in mixed-revision working copies.
-- Preserve XML encoding/BOM, replace rich-text children, and validate serialized XML before overwriting the working file.
-- Merge the union of populated headers and keep sparse cells ordered. Reject unsupported remote sheet additions/deletions and sheet delete/modify conflicts before saving.
-- Escape untrusted headers, file/sheet names and inline handler arguments; show modified rows even when their new position matches a deleted row's old position.
-- Add XML/API, real temporary SVN repository and frontend rendering regressions to CI.
+Safer spreadsheet merges and clearer conflict handling.
+
+**Data safety**
+- Keep chosen merge results intact through SVN updates, with a recovery copy available if an update fails.
+- Preserve UTF-16 files and rich-text values when saving, and reject invalid output before replacing the original file.
+
+**Merge behavior**
+- Honor Keep mine, Use latest, and Skip choices, including files in subfolders; skipped files remain visible as pending updates.
+- Include newly populated data columns and stop unsupported worksheet structure changes with a clear message before saving.
+
+**Display and language**
+- Keep changed rows visible after deletions, safely display table names and headers, and show worksheet warnings in Chinese or English.
+- Refresh an existing worksheet warning immediately when the interface language changes.
+
+**Internal / API**
+- Return a structured error code and affected sheet names for unsupported worksheet changes so the frontend can translate the message.
+- Check remote changes against each file's BASE and validate XML before an atomic replacement.
+
+**Tests**
+- Add XML/API, real local SVN repository, and frontend regressions to CI; the complete suite contains 122 cases.
 
 ## v1.5.1 (2026-08-25)
 

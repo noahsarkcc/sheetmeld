@@ -7,7 +7,7 @@
 [![Tests](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/noahsarkcc/sheetmeld)](https://github.com/noahsarkcc/sheetmeld/releases)
 
-> **v1.5.0** · Semantic diff and three-way merge for spreadsheet-based configuration data
+> **v1.5.1** · Semantic diff and three-way merge for spreadsheet-based configuration data
 
 SheetMeld is a zero-dependency, locally-runnable diff tool for structured configuration data maintained as Excel spreadsheets (`.xml` / `.xlsx` / `.xls`). It automatically filters out style, window-state, and column-width noise to show **only the real data changes**, with ID-based smart row matching, cell-level three-way semantic merge, and optional SVN integration.
 
@@ -195,6 +195,9 @@ python tests\test_merger.py
 python tests\test_differ.py
 python tests\test_updater.py
 python tests\test_api_merge.py
+python tests\test_regressions.py
+python tests\test_svn_update.py
+node --test tests/test_frontend.js
 ```
 
 Current coverage:
@@ -202,7 +205,12 @@ Current coverage:
 - `test_merger.py`: 29 merge-engine cases covering 5 cell states, 10 row-level states, resolution validation, XML write-back roundtrip, ExpandedRowCount maintenance, and comment preservation
 - `test_differ.py`: 11 diff-engine cases covering three-pass row matching (ID / content hash / row-number fallback), duplicate IDs, comment-column filtering, ID detection with header_row > 1, and UTF-16 parsing
 - `test_updater.py`: 23 updater cases covering version comparison, proxy fallback, release parsing, the download state machine, the self-replace update script, and the `/api/update/*` endpoints
-- `test_api_merge.py`: 26 API cases covering preview / apply / svn-mark-resolved / recursive file listing / path-traversal rejection / SVN update `check_only` subdirectory conflict detection / conflict merge flow / data-corruption regressions / external-state drift
+- `test_api_merge.py`: 28 API cases covering preview / apply / svn-mark-resolved / recursive file listing / path-traversal rejection / SVN update `check_only` subdirectory conflict detection / conflict merge flow / data-corruption regressions / external-state drift
+- `test_regressions.py`: 10 XML/API cases covering encoding/BOM, rich-text replacement, sparse columns, and worksheet-structure guards
+- `test_svn_update.py`: 9 real SVN integration cases using disposable local repositories
+- `test_frontend.js`: 12 rendering and localization cases covering escaping, shifted rows, and Chinese/English worksheet warnings
+
+The full suite contains **122 cases**. The SVN integration suite requires `svn` and `svnadmin` on PATH and explicitly skips when unavailable; frontend tests require Node.js 22+. These tools are test dependencies and are not required to run the packaged app.
 
 See [tests/TESTING.md](tests/TESTING.md) for the full manual test walkthrough.
 

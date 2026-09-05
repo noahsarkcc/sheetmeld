@@ -7,7 +7,7 @@
 [![Tests](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml/badge.svg)](https://github.com/noahsarkcc/sheetmeld/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/noahsarkcc/sheetmeld)](https://github.com/noahsarkcc/sheetmeld/releases)
 
-> **v1.5.0** · 面向表格配置的语义化 Diff 与三方合并工具
+> **v1.5.1** · 面向表格配置的语义化 Diff 与三方合并工具
 
 SheetMeld 是一个零依赖、可本地运行的表格 Diff 工具，专为以 Excel 表格（`.xml` / `.xlsx` / `.xls`）维护的结构化配置数据而设计。它自动过滤样式、窗口状态、列宽等元数据噪音，**只呈现真正的数据变更**，并提供基于行 ID 的智能匹配、单元格级三方语义合并，以及可选的 SVN 版本集成。
 
@@ -195,6 +195,9 @@ python tests\test_merger.py
 python tests\test_differ.py
 python tests\test_updater.py
 python tests\test_api_merge.py
+python tests\test_regressions.py
+python tests\test_svn_update.py
+node --test tests/test_frontend.js
 ```
 
 当前覆盖：
@@ -202,7 +205,12 @@ python tests\test_api_merge.py
 - `test_merger.py`：29 个合并引擎用例，覆盖 5 种单元格状态、10 种行级状态、决议校验、XML 写回 roundtrip、ExpandedRowCount 维护和注释保留
 - `test_differ.py`：11 个 diff 引擎用例，覆盖三遍行匹配（ID / 内容哈希 / 行号回退）、重复 ID、注释列过滤、header_row>1 的 ID 检测和 UTF-16 解析
 - `test_updater.py`：23 个更新模块用例，覆盖版本号比较、代理回退、release 解析、下载状态机、自替换更新脚本和 `/api/update/*` 端点
-- `test_api_merge.py`：26 个 API 用例，覆盖 preview / apply / svn-mark-resolved / 文件列表递归 / 路径穿越拒绝 / SVN update check_only 子目录冲突检测 / 冲突合并流程 / 数据损坏回归 / 外部状态漂移
+- `test_api_merge.py`：28 个 API 用例，覆盖 preview / apply / svn-mark-resolved / 文件列表递归 / 路径穿越拒绝 / SVN update check_only 子目录冲突检测 / 冲突合并流程 / 数据损坏回归 / 外部状态漂移
+- `test_regressions.py`：10 个 XML/API 用例，覆盖编码/BOM、富文本替换、稀疏列和工作表结构拦截
+- `test_svn_update.py`：9 个真实 SVN 集成用例，仅使用临时本地仓库
+- `test_frontend.js`：12 个渲染与语言用例，覆盖转义、行位移及工作表提示中英文切换
+
+完整套件共 **122 个用例**。SVN 集成测试需要 PATH 中有 `svn` 和 `svnadmin`，缺失时会明确跳过；前端测试需要 Node.js 22+。这些是测试工具，运行打包后的应用不需要安装它们。
 
 完整的手工测试流程见 [tests/TESTING.zh-CN.md](tests/TESTING.zh-CN.md)。
 
