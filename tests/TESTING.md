@@ -39,7 +39,7 @@ python tests\test_svn_update.py
 node --test tests/test_frontend.js
 ```
 
-The additional regressions cover XML encoding/structure, real SVN update behavior, and frontend escaping/row rendering. SVN integration tests create disposable local file:// repositories and require both `svn` and `svnadmin` on PATH (otherwise explicitly skipped). Frontend tests require Node.js 22+. The full local suite currently runs 119 tests.
+The additional regressions cover XML encoding/structure, real SVN update behavior, and frontend escaping/row rendering. SVN integration tests create disposable local file:// repositories and require both `svn` and `svnadmin` on PATH (otherwise explicitly skipped). Frontend tests require Node.js 22+. The full local suite currently runs 122 tests.
 
 Expected tail output:
 

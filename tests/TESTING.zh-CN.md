@@ -39,7 +39,7 @@ python tests\test_svn_update.py
 node --test tests/test_frontend.js
 ```
 
-新增回归覆盖 XML 编码/结构、真实 SVN 更新行为及前端转义/行渲染。SVN 测试只创建临时本地 file:// 仓库，需要 PATH 中有 `svn` 和 `svnadmin`，缺失时明确跳过；前端测试需要 Node.js 22+。完整本地套件当前共 119 个测试。
+新增回归覆盖 XML 编码/结构、真实 SVN 更新行为及前端转义/行渲染。SVN 测试只创建临时本地 file:// 仓库，需要 PATH 中有 `svn` 和 `svnadmin`，缺失时明确跳过；前端测试需要 Node.js 22+。完整本地套件当前共 122 个测试。
 
 预期输出末尾：
 

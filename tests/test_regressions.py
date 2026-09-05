@@ -143,7 +143,9 @@ class MergeRegressions(unittest.TestCase):
             for route in ("preview", "apply"):
                 response = client.post("/api/merge/" + route, json={"file": "items.xml", "mark_resolved": True})
                 self.assertEqual(response.status_code, 400, response.get_json())
-                self.assertIn("工作表", response.get_json()["error"])
+                self.assertEqual(response.get_json()["error_code"], "unsupported_sheet_change")
+                self.assertEqual(response.get_json()["sheets"], ["Items", "Other"])
+                self.assertIn("original file has not been changed", response.get_json()["error"])
             run.assert_not_called()
         self.assertEqual(self.path.read_bytes(), original)
 

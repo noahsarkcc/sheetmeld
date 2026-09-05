@@ -56,6 +56,13 @@ ROW_CONFLICT_STATUSES = {
 class UnsupportedSheetChange(ValueError):
     """A structural change that the row/cell merger cannot safely write."""
 
+    def __init__(self, sheets):
+        self.sheets = sorted(sheets)
+        super().__init__(
+            "Worksheet additions/deletions cannot be merged: " + ", ".join(self.sheets) +
+            ". Handle the worksheet structure in a spreadsheet editor before previewing again. "
+            "The original file has not been changed.")
+
 
 def _choose_id_column(base_sheet: dict, mine_sheet: dict, theirs_sheet: dict,
                       hint: Optional[str] = None) -> Optional[str]:
@@ -298,9 +305,7 @@ def three_way_diff(base: dict, mine: dict, theirs: dict,
     changed_names.update(name for name in set(base_sheets) - set(mine_sheets)
                          if name in theirs_sheets and base_sheets[name] != theirs_sheets[name])
     if changed_names:
-        raise UnsupportedSheetChange(
-            "暂不支持合并工作表新增/删除：" + ", ".join(sorted(changed_names)) +
-            "。请先在表格编辑器中处理工作表结构后重新预览；原文件未修改。")
+        raise UnsupportedSheetChange(changed_names)
 
     all_names = sorted(set(base_sheets) | set(mine_sheets) | set(theirs_sheets))
     sheets_out = {}
@@ -804,8 +809,9 @@ def write_merged_xml(source_path: str, three_way_result: dict, output_path: str)
     root = tree.getroot()
 
     sheets = three_way_result.get("sheets", {})
-    if any(s.get("sheet_status") == "added_theirs" for s in sheets.values()):
-        raise UnsupportedSheetChange("暂不支持写回远端新增工作表；原文件未修改。")
+    added_sheets = [name for name, sheet in sheets.items() if sheet.get("sheet_status") == "added_theirs"]
+    if added_sheets:
+        raise UnsupportedSheetChange(added_sheets)
     for ws_el in root.iter(WORKSHEET_TAG):
         name = ws_el.get(SS_NAME, "Unknown")
         sheet_result = sheets.get(name)

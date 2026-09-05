@@ -6,6 +6,7 @@ All notable changes to SheetMeld are documented here. Format roughly follows [Ke
 
 ## Unreleased
 
+- Localize worksheet-structure merge guards in Chinese and English, including language changes while an error is already displayed.
 - Preserve semantic merge results across SVN updates: restore clean bytes after advancing BASE, then resolve text conflicts; retain recovery copies on failure.
 - Make “use latest” replace local content and “skip” preserve both content and BASE. Detect pending updates in mixed-revision working copies.
 - Preserve XML encoding/BOM, replace rich-text children, and validate serialized XML before overwriting the working file.

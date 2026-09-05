@@ -64,6 +64,7 @@ const I18N_MESSAGES = {
     'merge.noopConfirm': '确认无差异，完成此文件',
 
     'merge.xmlOnly': '语义合并仅支持 .xml (SpreadsheetML 2003) 文件',
+    'merge.unsupportedSheetChange': '暂不支持合并工作表新增/删除或工作表删除与修改的冲突：{0}。请先在表格编辑器中处理工作表结构后重新预览；原文件未修改。',
     'merge.unresolvedAlert': '还有未解决的冲突，请先全部决议',
     'merge.applySuccess': '合并完成，已写回 {0} 项变更',
     'merge.svnResolved': '；SVN 冲突已标记为已解决',
@@ -349,6 +350,7 @@ const I18N_MESSAGES = {
     'merge.noopConfirm': 'Confirm no diff & finish this file',
 
     'merge.xmlOnly': 'Semantic merge only supports .xml (SpreadsheetML 2003) files',
+    'merge.unsupportedSheetChange': 'Worksheet additions/deletions and sheet delete/modify conflicts cannot be merged yet: {0}. Handle the worksheet structure in a spreadsheet editor before previewing again. The original file has not been changed.',
     'merge.unresolvedAlert': 'There are unresolved conflicts. Please resolve all first.',
     'merge.applySuccess': 'Merge complete, {0} change(s) written',
     'merge.svnResolved': '; SVN conflict marked resolved',
@@ -585,7 +587,7 @@ const I18N = {
   t(key, ...args) {
     const dict = I18N_MESSAGES[this.current] || I18N_MESSAGES.zh;
     let msg = dict[key] !== undefined ? dict[key] : key;
-    args.forEach((arg, i) => { msg = msg.replace('{' + i + '}', arg); });
+    args.forEach((arg, i) => { msg = msg.replace('{' + i + '}', () => String(arg)); });
     return msg;
   },
   setLocale(lang) {

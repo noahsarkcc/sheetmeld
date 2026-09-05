@@ -1017,7 +1017,7 @@ def api_merge_preview():
         result = xml_merger.three_way_diff(base, mine, theirs,
                                            id_column=body.get("id_column"))
     except xml_merger.UnsupportedSheetChange as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e), "error_code": "unsupported_sheet_change", "sheets": e.sheets}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1123,7 +1123,7 @@ def api_merge_apply():
 
         xml_merger.write_merged_xml(sources["template_path"], result, fpath)
     except xml_merger.UnsupportedSheetChange as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e), "error_code": "unsupported_sheet_change", "sheets": e.sheets}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()

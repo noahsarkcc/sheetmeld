@@ -73,11 +73,18 @@ window.addEventListener("resize", () => { _fixScrollableHeight(); });
 
 // ── API helpers ──
 
+function apiErrorMessage(body) {
+  if (body && body.error_code === "unsupported_sheet_change") {
+    return t('merge.unsupportedSheetChange', (body.sheets || []).join(', '));
+  }
+  return (body && body.error) || "";
+}
+
 async function api(url, opts) {
   const res = await fetch(API + url, opts);
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    const err = new Error(body.error || res.statusText);
+    const err = new Error(apiErrorMessage(body) || res.statusText);
     // Expose HTTP status + parsed body so callers can distinguish e.g. 409 stale
     // from a generic 500. Existing `catch(e) { alert(e.message) }` callers are
     // unaffected because the message remains the primary readable field.
@@ -1219,7 +1226,8 @@ function renderContent() {
       return;
     }
     if (state.mergeData.error) {
-      main.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${escHtml(state.mergeData.error)}</div></div>`;
+      const message = apiErrorMessage(state.mergeData.error_detail) || state.mergeData.error;
+      main.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${escHtml(message)}</div></div>`;
       return;
     }
     renderMergeView(main);
@@ -1955,7 +1963,8 @@ async function doMergePreview() {
       state.activeSheet = names[0] || null;
     }
   } catch (e) {
-    state.mergeData = { error: e.message };
+    // Retain structured errors so an existing preview follows locale changes.
+    state.mergeData = { error: e.message, error_detail: e.body };
   }
   state.loading = false;
   renderToolbar();

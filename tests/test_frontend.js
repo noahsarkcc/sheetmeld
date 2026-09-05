@@ -6,7 +6,8 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '../static/js/app.js'), 'utf8');
-function app() {
+const translations = fs.readFileSync(path.join(__dirname, '../static/js/i18n.js'), 'utf8');
+function app(withTranslations = false) {
   const elements = new Map();
   const get = id => {
     if (!elements.has(id)) elements.set(id, { innerHTML: '', style: {}, addEventListener() {}, classList: { toggle() {} } });
@@ -14,13 +15,14 @@ function app() {
   };
   const context = vm.createContext({
     window: { addEventListener() {} },
-    document: { addEventListener() {}, getElementById: get, querySelectorAll() { return []; } },
-    localStorage: { getItem() { return null; } },
+    document: { documentElement: {}, addEventListener() {}, getElementById: get, querySelectorAll() { return []; } },
+    localStorage: { getItem() { return null; }, setItem() {} },
     requestAnimationFrame() {},
     setTimeout() { throw new Error('Unexpected delayed dismissal'); },
     t: (key, ...args) => [key, ...args].join(' '),
     event: { stopPropagation() {} },
   });
+  if (withTranslations) vm.runInContext(translations, context);
   vm.runInContext(source, context);
   return { context, get, run: code => vm.runInContext(code, context) };
 }
@@ -157,4 +159,56 @@ test('a refreshed merge preview can be retried after a stale apply', async () =>
   await a.run('applyMerge()');
   const button = a.get('toolbar').innerHTML.match(/<button[^>]*id="applyMergeBtn"[^>]*>/)[0];
   assert.ok(!button.includes('disabled'), button);
+});
+
+test('worksheet guard switches between Chinese and English without a new request', async () => {
+  const a = app(true);
+  let requests = 0;
+  a.context.fetch = async () => {
+    requests++;
+    return { ok: false, status: 400, statusText: 'Bad request', json: async () => ({
+      error: 'Fallback message', error_code: 'unsupported_sheet_change', sheets: ['Sheet3', header, '$&'],
+    }) };
+  };
+  a.run("state.config={svn_available:false,workspaces:[]};state.mode='merge';state.selectedFile='items.xml';");
+  await a.run('doMergePreview()');
+  assert.ok(a.get('content').innerHTML.includes('暂不支持合并工作表'));
+  a.run("I18N.setLocale('en');");
+  const english = a.get('content').innerHTML;
+  assert.ok(english.includes('Worksheet additions/deletions'));
+  assert.ok(english.includes('The original file has not been changed.'));
+  assert.ok(english.includes('Sheet3'));
+  assert.ok(english.includes('$&amp;'));
+  assert.ok(!english.includes('暂不支持'));
+  assert.ok(!english.includes('<img src=x'));
+  a.run("I18N.setLocale('zh');");
+  assert.ok(a.get('content').innerHTML.includes('原文件未修改'));
+  assert.equal(requests, 1);
+});
+
+test('worksheet guard apply alerts use the selected language', async () => {
+  const a = app(true);
+  const alerts = [];
+  a.context.alert = message => alerts.push(message);
+  a.context.fetch = async () => ({ ok: false, status: 400, statusText: 'Bad request', json: async () => ({
+    error: 'Fallback message', error_code: 'unsupported_sheet_change', sheets: ['Sheet3'],
+  }) });
+  a.run(`
+    state.config={svn_available:false,workspaces:[]};state.mode='merge';state.selectedFile='items.xml';
+    state.mergeData={sheets:{Items:{rows:[]}},summary:{conflicts:0,auto_resolved:0}};
+  `);
+  for (const language of ['en', 'zh']) {
+    a.run(`I18N.setLocale('${language}');`);
+    await a.run('applyMerge()');
+  }
+  assert.ok(alerts[0].startsWith('Failed to apply merge: Worksheet additions/deletions'));
+  assert.ok(alerts[1].startsWith('应用合并失败: 暂不支持合并工作表'));
+  assert.ok(alerts.every(message => message.includes('Sheet3')));
+});
+
+test('unknown API errors retain their diagnostic message', async () => {
+  const a = app(true);
+  a.context.fetch = async () => ({ ok: false, status: 500, json: async () => ({ error: 'SVN diagnostic' }) });
+  const message = await a.run("api('/unknown').catch(error=>error.message)");
+  assert.equal(message, 'SVN diagnostic');
 });
