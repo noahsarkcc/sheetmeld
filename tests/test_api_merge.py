@@ -487,7 +487,8 @@ def test_idempotent_after_apply(client, workdir, fpath):
 
 @t("smart_update: semantic results survive textual update before sibling update")
 def test_smart_update_semantic_files_promoted_first():
-    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as workdir:
+    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as raw_workdir:
+        workdir = os.path.realpath(raw_workdir)
         names = ["a.xml", "b.xml"]
         with open(MINE_PATH, "rb") as fixture:
             original = fixture.read()
@@ -508,7 +509,7 @@ def test_smart_update_semantic_files_promoted_first():
                 fpath = os.path.join(workdir, name)
                 with open(fpath, "rb") as f:
                     assert f.read() == original, "clean merge bytes must be restored first"
-                assert os.path.normcase(fpath) in excluded
+                assert os.path.normcase(fpath) in excluded, fpath + " not in " + str(excluded)
             return []
 
         def fake_info(path):
@@ -532,7 +533,8 @@ def test_smart_update_semantic_files_promoted_first():
 
 @t("smart_update: failed promotion restores content and stops sibling updates")
 def test_smart_update_semantic_promote_failure_stops_directory_update():
-    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as workdir:
+    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as raw_workdir:
+        workdir = os.path.realpath(raw_workdir)
         result = svn_helper.smart_update(workdir, [], [], [], ["a.xml"])
         assert result["errors"], "missing target revision should be reported"
         fpath = os.path.join(workdir, "a.xml")
