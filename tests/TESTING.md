@@ -32,13 +32,20 @@ python tests\test_merger.py
 
 # 2) HTTP API end-to-end tests (mock SVN, no real repo needed)
 python tests\test_api_merge.py
+python tests\test_differ.py
+python tests\test_updater.py
+python tests\test_regressions.py
+python tests\test_svn_update.py
+node --test tests/test_frontend.js
 ```
+
+The additional regressions cover XML encoding/structure, real SVN update behavior, and frontend escaping/row rendering. SVN integration tests create disposable local file:// repositories and require both `svn` and `svnadmin` on PATH (otherwise explicitly skipped). Frontend tests require Node.js 22+. The full local suite currently runs 119 tests.
 
 Expected tail output:
 
 ```
-== All passed: 27/27 ==     (test_merger.py)
-== All passed: 15/15 ==     (test_api_merge.py)
+== All passed: 29/29 ==     (test_merger.py)
+== All passed: 28/28 ==     (test_api_merge.py)
 ```
 
 If anything fails, send me the full output.

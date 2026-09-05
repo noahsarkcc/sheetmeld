@@ -1016,6 +1016,8 @@ def api_merge_preview():
         theirs = xml_parser.parse_string(sources["theirs"], header_row=hr)
         result = xml_merger.three_way_diff(base, mine, theirs,
                                            id_column=body.get("id_column"))
+    except xml_merger.UnsupportedSheetChange as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1120,6 +1122,8 @@ def api_merge_apply():
                               + len(ops["remove_rows"]))
 
         xml_merger.write_merged_xml(sources["template_path"], result, fpath)
+    except xml_merger.UnsupportedSheetChange as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1183,12 +1187,17 @@ def api_svn_remote_revision():
     local_info = svn_helper.get_svn_info(wd)
     if not local_info or not local_info.get("url"):
         return jsonify({"error": "Not an SVN working copy"}), 400
-    remote_rev = svn_helper.get_remote_head_revision(local_info["url"])
+    status = svn_helper.get_remote_update_status(wd)
+    if status is None:
+        return jsonify({"error": "Cannot check remote SVN status"}), 502
+    remote_rev = status["remote_revision"]
     local_rev = int(local_info.get("revision", 0)) if local_info.get("revision", "").isdigit() else 0
+    if status["local_revision"] is not None:
+        local_rev = min(local_rev, status["local_revision"])
     return jsonify({
         "remote_revision": remote_rev,
         "local_revision": local_rev,
-        "has_update": remote_rev > local_rev if remote_rev else False,
+        "has_update": status["has_update"],
     })
 
 

@@ -13,6 +13,7 @@ SheetMeld is a zero-dependency, locally-runnable diff tool for structured config
 
 - Parsing and diffing support `.xml` (SpreadsheetML 2003), `.xlsx` (Office Open XML), and `.xls`
 - Cell-level three-way semantic merge currently supports `.xml` only
+- Remote worksheet additions/deletions and local sheet deletion versus remote modification are rejected before saving; handle those structural changes in a spreadsheet editor first
 - Flask backend + zero-dependency frontend SPA — run with `python server.py`, or package as a single `.exe`
 
 ---

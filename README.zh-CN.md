@@ -13,6 +13,7 @@ SheetMeld 是一个零依赖、可本地运行的表格 Diff 工具，专为以 
 
 - 解析与 Diff 支持 `.xml`（SpreadsheetML 2003）、`.xlsx`（Office Open XML）和 `.xls`
 - 单元格级三方语义合并当前仅支持 `.xml`
+- 远端工作表增删、以及本地删除工作表同时远端修改的情况暂不支持语义合并；会阻止保存并提示处理，不会丢弃工作表内容
 - 后端 Flask + 前端零依赖 SPA，可直接 `python server.py` 启动，也可打包成单文件 exe
 
 ---

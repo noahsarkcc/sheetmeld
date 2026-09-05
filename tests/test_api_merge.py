@@ -485,85 +485,75 @@ def test_idempotent_after_apply(client, workdir, fpath):
 # ── 数据损坏防护 ────────────────────────────────────
 
 
-@t("smart_update: semantic_files 必须先于整目录 update 单独 update --accept working")
+@t("smart_update: semantic results survive textual update before sibling update")
 def test_smart_update_semantic_files_promoted_first():
-    """回归 18:51 那次数据损坏：
+    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as workdir:
+        names = ["a.xml", "b.xml"]
+        with open(MINE_PATH, "rb") as fixture:
+            original = fixture.read()
+        for name in names:
+            with open(os.path.join(workdir, name), "wb") as f:
+                f.write(original)
+        updates = []
 
-    svn_helper.smart_update 必须先对每个 semantic_file 跑
-    `resolve --accept working` + `update --accept working <fpath>` 把 BASE 推到
-    HEAD，再跑整目录 `update --accept postpone`。如果顺序反了，整目录 update
-    会重新触发冲突并把 `<<<<<<<` 标记写进工作副本，后续 resolve --accept
-    working 会把损坏内容固化为 SVN 认可的"已解决"状态。
-    """
-    workdir = tempfile.mkdtemp(prefix="xmldev_test_")
-    try:
-        calls = []
+        def fake_run(*args, **kwargs):
+            if args[0] == "update":
+                updates.append(args)
+                with open(args[-1], "wb") as f:
+                    f.write(b"<<<<<<< SVN textual merge")
+            return 0, "", ""
 
-        def _fake_run(*args, **kwargs):
-            # _run 的第一个 positional 是 svn 子命令名
-            calls.append(args)
-            return (0, "", "")
+        def update_siblings(path, revision, excluded):
+            for name in names:
+                fpath = os.path.join(workdir, name)
+                with open(fpath, "rb") as f:
+                    assert f.read() == original, "clean merge bytes must be restored first"
+                assert os.path.normcase(fpath) in excluded
+            return []
 
-        with patch.object(svn_helper, "_run", side_effect=_fake_run), \
-             patch.object(svn_helper, "get_conflicted_files", return_value=[]):
-            svn_helper.smart_update(workdir, [], [], [], [
+        def fake_info(path):
+            revision = {"a.xml": "10", "b.xml": "11"}.get(os.path.basename(path), "12")
+            return {"url": "file:///fixture", "revision": revision}
+
+        with patch.object(svn_helper, "_run", side_effect=fake_run), \
+             patch.object(svn_helper, "get_svn_info", side_effect=fake_info), \
+             patch.object(svn_helper, "get_conflicted_files", return_value=[]), \
+             patch.object(svn_helper, "_update_excluding", side_effect=update_siblings) as siblings:
+            result = svn_helper.smart_update(workdir, [], [], [], [
                 {"file": "a.xml", "theirs_revision": 10},
                 {"file": "b.xml", "theirs_revision": 11},
             ])
-
-        cmds = [a[0] for a in calls if a]
-        # 必须有两个 semantic_files × (resolve, update) = 至少 4 条命令在
-        # 整目录 "update --accept postpone <workdir>" 之前
-        idx_dir_update = None
-        for i, a in enumerate(calls):
-            if (len(a) >= 4 and a[0] == "update"
-                    and a[1] == "--accept" and a[2] == "postpone"):
-                idx_dir_update = i
-                break
-        assert idx_dir_update is not None, (
-            "smart_update never ran the directory-wide `svn update --accept postpone`")
-
-        prefix = calls[:idx_dir_update]
-        prefix_cmds = [a[:5] for a in prefix]
-        expected = [
-            ("resolve", "--accept", "working", os.path.join(workdir, "a.xml")),
-            ("update", "-r", "10", "--accept", "working"),
-            ("resolve", "--accept", "working", os.path.join(workdir, "b.xml")),
-            ("update", "-r", "11", "--accept", "working"),
-        ]
-        assert prefix_cmds == expected, (
-            f"semantic_files must be processed before the directory update, "
-            f"got prefix={prefix_cmds!r}")
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+        assert not result["errors"], result
+        assert result["semantic"] == names
+        assert [cmd[2] for cmd in updates] == ["10", "11"]
+        assert all(cmd[4] == "postpone" for cmd in updates)
+        siblings.assert_called_once()
 
 
-@t("smart_update: semantic_files 缺目标版本或单文件 update 失败时停止整目录 update")
+@t("smart_update: failed promotion restores content and stops sibling updates")
 def test_smart_update_semantic_promote_failure_stops_directory_update():
-    workdir = tempfile.mkdtemp(prefix="xmldev_test_")
-    try:
-        calls = []
-
+    with tempfile.TemporaryDirectory(prefix="xmldev_test_") as workdir:
         result = svn_helper.smart_update(workdir, [], [], [], ["a.xml"])
         assert result["errors"], "missing target revision should be reported"
+        fpath = os.path.join(workdir, "a.xml")
+        shutil.copy(MINE_PATH, fpath)
 
-        def _fake_run(*args, **kwargs):
-            calls.append(args)
-            if args and args[0] == "update" and args[1] == "-r":
-                return (1, "", "locked")
-            return (0, "", "")
+        def fake_run(*args, **kwargs):
+            return (1, "", "locked") if args[0] == "update" else (0, "", "")
 
-        with patch.object(svn_helper, "_run", side_effect=_fake_run), \
-             patch.object(svn_helper, "get_conflicted_files", return_value=[]):
+        with patch.object(svn_helper, "_run", side_effect=fake_run), \
+             patch.object(svn_helper, "get_svn_info", return_value={"url": "file:///fixture", "revision": "10"}), \
+             patch.object(svn_helper, "get_conflicted_files", return_value=[]), \
+             patch.object(svn_helper, "_update_excluding") as siblings:
             result = svn_helper.smart_update(workdir, [], [], [], [
                 {"file": "a.xml", "theirs_revision": 10},
             ])
-
-        assert result["errors"] and "locked" in result["errors"][0]
-        assert not any(a[0] == "update" and len(a) >= 4 and a[2] == "postpone"
-                       for a in calls), "directory update must not run after promote failure"
-    finally:
-        shutil.rmtree(workdir, ignore_errors=True)
+        assert result["errors"] and "locked" in result["errors"][0], result
+        siblings.assert_not_called()
+        with open(fpath, "rb") as f, open(MINE_PATH, "rb") as expected:
+            assert f.read() == expected.read()
+        for backup in result.get("backups", []):
+            os.remove(backup)
 
 
 @t("get_conflict_info: 相对 sidecar 路径按冲突文件目录解析")

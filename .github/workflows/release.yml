@@ -34,10 +34,19 @@ jobs:
 
       - name: Run tests
         run: |
-          python tests/test_merger.py
-          python tests/test_differ.py
-          python tests/test_updater.py
-          python tests/test_api_merge.py
+          $scripts = @('test_merger.py', 'test_differ.py', 'test_updater.py', 'test_api_merge.py', 'test_regressions.py', 'test_svn_update.py')
+          foreach ($script in $scripts) {
+            python "tests/$script"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run frontend regressions
+        run: node --test tests/test_frontend.js
 
       - name: Build executable
         run: >

@@ -226,7 +226,11 @@ def _diff_sheet(old_sheet: dict, new_sheet: dict, id_column: Optional[str]) -> d
 
     old_headers = old_sheet.get("headers", [])
     new_headers = new_sheet.get("headers", [])
-    merged_headers = new_headers if len(new_headers) >= len(old_headers) else old_headers
+    merged_headers = [
+        (new_headers[i] if i < len(new_headers) and new_headers[i]
+         else old_headers[i] if i < len(old_headers) else "")
+        for i in range(max(len(old_headers), len(new_headers)))
+    ]
 
     valid_cols = set()
     for i, h in enumerate(merged_headers):

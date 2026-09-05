@@ -445,55 +445,62 @@ def get_remote_head_revision(url: str) -> Optional[int]:
         return None
 
 
-def get_remote_changed_files(path: str, extensions: tuple = (".xml", ".xlsx", ".xls")) -> list:
-    """Get files changed between local BASE and remote HEAD."""
-    info = get_svn_info(path)
-    if not info:
-        return []
-    local_rev = info.get("revision", "0")
-    url = info.get("url", "")
-    if not url:
-        return []
-    rc, out, err = _run("diff", "--summarize", "-r", f"{local_rev}:HEAD", url, timeout=120)
+def get_remote_update_status(path: str, extensions: tuple = (".xml", ".xlsx", ".xls")) -> Optional[dict]:
+    """Inspect per-file BASE revisions, including files skipped by prior updates."""
+    rc, out, _err = _run("status", "--xml", "--show-updates", path, timeout=120)
     if rc != 0:
-        return []
-    files = []
-    for line in out.strip().splitlines():
-        if not line.strip():
-            continue
-        parts = line.strip().split(None, 1)
-        if len(parts) < 2:
-            continue
-        file_url = parts[1].strip()
-        if file_url.startswith(url + "/"):
-            fname = file_url[len(url) + 1:]
-        elif file_url.startswith(url):
-            fname = file_url[len(url):]
-        else:
-            fname = os.path.basename(file_url)
-        # svn outputs percent-encoded URLs; decode so names match the local
-        # working-copy paths reported by `svn status` (conflict detection).
-        fname = urllib.parse.unquote(fname)
-        if fname and any(fname.lower().endswith(e) for e in extensions):
-            files.append(fname)
-    return files
+        return None
+    try:
+        root = ET.fromstring(out)
+        against = root.find(".//against")
+        remote_revision = int(against.get("revision")) if against is not None else None
+        files = []
+        revisions = []
+        has_update = False
+        for entry in root.iter("entry"):
+            repos = entry.find("repos-status")
+            if repos is None or (repos.get("item", "none") in ("none", "normal")
+                                 and repos.get("props", "none") in ("none", "normal")):
+                continue
+            has_update = True
+            wc = entry.find("wc-status")
+            revision = wc.get("revision", "") if wc is not None else ""
+            if revision.isdigit():
+                revisions.append(int(revision))
+            filename = entry.get("path", "")
+            if filename.lower().endswith(extensions):
+                files.append(os.path.relpath(filename, path).replace("\\", "/"))
+        return {"files": files, "has_update": has_update, "remote_revision": remote_revision,
+                "local_revision": min(revisions) if revisions else None}
+    except (ET.ParseError, ValueError, TypeError):
+        return None
 
 
-def get_conflicted_files(working_dir: str) -> list:
+def get_remote_changed_files(path: str, extensions: tuple = (".xml", ".xlsx", ".xls")) -> list:
+    status = get_remote_update_status(path, extensions)
+    return status["files"] if status else []
+
+
+def get_conflicted_files(working_dir: str, strict: bool = False) -> list:
     """List paths currently in conflicted state (text or tree conflicts)."""
     rc, out, _err = _run("status", "--xml", working_dir, timeout=60)
     if rc != 0:
+        if strict:
+            raise RuntimeError(_err or "Cannot inspect SVN conflict state")
         return []
     try:
         root = ET.fromstring(out)
     except ET.ParseError:
+        if strict:
+            raise
         return []
     result = []
     for entry in root.iter("entry"):
         wc = entry.find("wc-status")
         if wc is None:
             continue
-        if wc.get("item") == "conflicted" or wc.get("tree-conflicted") == "true":
+        if (wc.get("item") == "conflicted" or wc.get("props") == "conflicted"
+                or wc.get("tree-conflicted") == "true"):
             result.append(entry.get("path", ""))
     return result
 
@@ -593,89 +600,188 @@ def _semantic_file_entry(item) -> tuple:
 _UPDATE_ITEM_RE = re.compile(r"^[ADUCGER][ ADUCGEB]?\s{2,}\S")
 
 
+def _update_path(workspace: str, name: str) -> str:
+    """Validate update targets before any SVN command can modify files."""
+    root = os.path.normcase(os.path.realpath(workspace))
+    if not isinstance(name, str) or not name or os.path.isabs(name):
+        raise ValueError("Invalid workspace-relative update path")
+    target = os.path.realpath(os.path.join(workspace, name))
+    if os.path.commonpath([root, os.path.normcase(target)]) != root or os.path.normcase(target) == root:
+        raise ValueError("Update path escapes workspace: " + name)
+    return target
+
+
+def _write_bytes_atomic(path: str, content: bytes):
+    import tempfile
+    fd, temporary = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".sheetmeld.tmp")
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(content)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
+
+def _checked_run(*args, **kwargs) -> str:
+    rc, out, err = _run(*args, **kwargs)
+    if rc != 0:
+        raise RuntimeError((err or out or "svn command failed").strip())
+    return out
+
+
+def _resolve_clean_text(path: str):
+    """Only resolve known text conflicts, after clean bytes have been restored."""
+    if not get_conflicted_files(path, strict=True):
+        return
+    if not get_conflict_info(path):
+        raise RuntimeError("Tree/property conflict requires manual resolution: " + path)
+    _checked_run("resolve", "--accept", "working", path)
+    if get_conflicted_files(path, strict=True):
+        raise RuntimeError("SVN conflict remains unresolved: " + path)
+
+
+def _update_excluding(path: str, revision: int, excluded: set):
+    """Update siblings while keeping excluded files and their BASE untouched.
+
+    Only ancestors of excluded targets need shallow updates. Read both local
+    and remote children so additions and deletions elsewhere still get applied.
+    """
+    key = os.path.normcase(os.path.realpath(path))
+    if key in excluded:
+        return
+    if not any(p.startswith(key + os.sep) for p in excluded):
+        yield _checked_run("update", "-r", str(revision), "--accept", "postpone",
+                           *(["--ignore-externals"] if excluded else []), path, timeout=300)
+        return
+
+    info = get_svn_info(path)
+    if not info or not info.get("url"):
+        raise RuntimeError("Cannot inspect update directory: " + path)
+    local = ET.fromstring(_checked_run("info", "--xml", "--depth", "immediates", path))
+    local_names = {os.path.basename(e.get("path", "")) for e in local.findall("entry")
+                   if os.path.normcase(os.path.abspath(e.get("path", ""))) != key}
+    remote = ET.fromstring(_checked_run("list", "--xml", "-r", str(revision),
+                                       info["url"], timeout=60))
+    remote_names = {e.findtext("name") for e in remote.findall(".//entry")}
+    yield _checked_run("update", "-r", str(revision), "--depth", "empty",
+                       "--accept", "postpone", "--ignore-externals", path, timeout=300)
+    for name in sorted((local_names | remote_names) - {None, ""}):
+        child = os.path.join(path, name)
+        child_key = os.path.normcase(os.path.realpath(child))
+        if child_key not in excluded and name not in remote_names and any(
+                p.startswith(child_key + os.sep) for p in excluded):
+            raise RuntimeError("Remote directory deletion contains a protected file: " + child)
+        yield from _update_excluding(child, revision, excluded)
+
+
 def smart_update(path: str, skip_files: list, theirs_files: list,
                  mine_files: list, semantic_files: list = None) -> dict:
-    """Execute svn update, handling conflicts per user choice.
+    """Apply explicit file policies and update only unprotected paths.
 
-    - skip_files: files to keep at current state (resolve as mine after update)
-    - theirs_files: files to accept server version
-    - mine_files: files to keep local modifications
-    - semantic_files: files whose merge result has already been written to the
-                     working copy by /api/merge/apply; here we just make sure
-                     SVN considers them resolved (accept working).
+    Semantic results and mine-full choices survive SVN's textual merge byte
+    for byte. Skipped files are never update targets, including their BASE.
+    All repository reads use a fixed revision; semantic files keep the revision
+    that was actually reviewed, even if HEAD has advanced in the meantime.
     """
-    semantic_files = semantic_files or []
+    import tempfile
     results = {"updated": 0, "skipped": [], "theirs": [],
                "mine": [], "semantic": [], "errors": []}
+    output = []
+    plans = []
+    excluded = set()
+    try:
+        if not path or not os.path.isdir(path):
+            raise ValueError("Workspace directory is not configured")
+        for policy, items in (("skipped", skip_files), ("theirs", theirs_files),
+                              ("mine", mine_files), ("semantic", semantic_files or [])):
+            for item in items:
+                name, revision = _semantic_file_entry(item) if policy == "semantic" else (item, None)
+                if policy == "semantic" and (revision is None or revision < 1):
+                    raise ValueError(str(name) + ": missing semantic merge target revision; please preview again")
+                target = _update_path(path, name)
+                key = os.path.normcase(target)
+                if any(key == other or key.startswith(other + os.sep)
+                       or other.startswith(key + os.sep) for other in excluded):
+                    raise ValueError("Conflicting update choices for: " + str(name))
+                excluded.add(key)
+                plans.append((policy, name, target, revision))
 
-    # CRITICAL: semantic_files must be promoted to HEAD BEFORE the directory
-    # update. /api/merge/apply has already written the merged result to the
-    # working copy and run `svn resolve --accept working` on it, but the file's
-    # BASE is still the pre-update revision. If we let `svn update --accept
-    # postpone <dir>` run first, SVN re-runs the three-way merge between BASE,
-    # HEAD and our working content, finds a conflict (working == .mine, not the
-    # actual merge), and injects `<<<<<<<` / `>>>>>>>` markers into the file.
-    # The subsequent `svn resolve --accept working` would then freeze those
-    # markers as the "final" content (svn resolve --accept working does NOT
-    # clean conflict markers - that is by design). The result is silent data
-    # corruption: the working copy ends up with conflict markers but SVN
-    # thinks the file is resolved, and the next merge preview crashes with
-    # "not well-formed (invalid token): line 3, column 1" when it tries to
-    # parse the poisoned XML as MINE.
-    #
-    # Fix: for each semantic file, single-file `svn update --accept working`
-    # pushes BASE up to HEAD while explicitly accepting the working copy
-    # (which contains our cleanly-merged content). After that, the directory
-    # update can no longer touch these files. Run a defensive `resolve
-    # --accept working` first in case /api/merge/apply's resolve didn't take
-    # (e.g. SVN couldn't find a conflict state to clear, which returns rc!=0
-    # but is harmless).
-    for item in semantic_files:
-        f, target_rev = _semantic_file_entry(item)
-        if not f:
-            results["errors"].append("semantic merge file is missing")
-            return results
-        if target_rev is None:
-            results["errors"].append(
-                f"{f}: missing semantic merge target revision; please preview again")
-            return results
+        info = get_svn_info(path)
+        remote = get_svn_info(info["url"]) if info and info.get("url") else None
+        if not remote or not str(remote.get("revision", "")).isdigit():
+            raise RuntimeError("Cannot get remote revision for update")
+        head = int(remote["revision"])
 
-        fpath = os.path.join(path, f)
-        _run("resolve", "--accept", "working", fpath)
-        rc, out, err = _run(
-            "update", "-r", str(target_rev), "--accept", "working", fpath,
-            timeout=60)
-        if rc != 0:
-            msg = (err or out or "svn update failed").strip()
-            results["errors"].append(f"{f}: {msg}")
-            return results
-        results["semantic"].append(f)
+        for policy, name, target, revision in plans:
+            if policy == "skipped":
+                results[policy].append(name)
+                continue
+            revision = revision or head
+            conflict = get_conflict_info(target)
+            source = conflict["mine_file"] if conflict and policy != "semantic" else target
+            original = None
+            if os.path.isfile(source):
+                with open(source, "rb") as stream:
+                    original = stream.read()
+            if policy in ("semantic", "mine") and original is None:
+                raise RuntimeError("Cannot preserve missing working file: " + name)
+            if policy == "semantic":
+                ET.fromstring(original)  # Never preserve already-poisoned merge results.
 
-    rc, out, err = _run("update", "--accept", "postpone", path, timeout=300)
-    if rc != 0 and not get_conflicted_files(path):
-        # Conflict state is checked via `status --xml` rather than sniffing
-        # localized output strings ("conflict" is not stable across locales).
-        results["errors"].append(err or out)
-        return results
+            # Keep a recovery copy until both update and restore/resolve succeed.
+            backup = None
+            if original is not None:
+                fd, backup = tempfile.mkstemp(prefix="sheetmeld-update-", suffix=".bak")
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(original)
+            try:
+                if policy == "theirs":
+                    # resolve --accept theirs-full is a no-op after an automatic
+                    # merge. Revert first, then update to the chosen revision.
+                    _checked_run("revert", "--depth", "empty", target)
+                    output.append(_checked_run("update", "-r", str(revision), "--accept",
+                                               "postpone", "--ignore-externals", target, timeout=60))
+                    if get_conflicted_files(target, strict=True):
+                        raise RuntimeError("SVN conflict remains unresolved: " + name)
+                else:
+                    _write_bytes_atomic(target, original)
+                    _resolve_clean_text(target)
+                    try:
+                        output.append(_checked_run("update", "-r", str(revision), "--accept",
+                                                   "postpone", "--ignore-externals", target, timeout=60))
+                    finally:
+                        # --accept working preserves the *post-merge* file,
+                        # which can contain conflict markers. Restore our copy.
+                        _write_bytes_atomic(target, original)
+                    _resolve_clean_text(target)
+                if policy != "theirs" or os.path.exists(target):
+                    updated_info = get_svn_info(target)
+                    if not updated_info or str(updated_info.get("revision")) != str(revision):
+                        raise RuntimeError("SVN did not advance file BASE to r" + str(revision))
+                results[policy].append(name)
+            except Exception as exc:
+                if original is not None:
+                    try:
+                        _write_bytes_atomic(target, original)
+                    except OSError:
+                        pass
+                if backup:
+                    results.setdefault("backups", []).append(backup)
+                raise RuntimeError(name + ": " + str(exc)) from exc
+            else:
+                if backup:
+                    os.remove(backup)
 
-    update_lines = out.strip().splitlines() if out else []
-    results["updated"] = len([l for l in update_lines if _UPDATE_ITEM_RE.match(l)])
-
-    for f in theirs_files:
-        fpath = os.path.join(path, f)
-        _run("resolve", "--accept", "theirs-full", fpath)
-        results["theirs"].append(f)
-
-    for f in mine_files:
-        fpath = os.path.join(path, f)
-        _run("resolve", "--accept", "mine-full", fpath)
-        results["mine"].append(f)
-
-    for f in skip_files:
-        fpath = os.path.join(path, f)
-        _run("resolve", "--accept", "mine-full", fpath)
-        results["skipped"].append(f)
-
+        output.extend(_update_excluding(path, head, excluded))
+        remaining = [p for p in get_conflicted_files(path, strict=True)
+                     if os.path.normcase(os.path.realpath(p)) not in excluded]
+        if remaining:
+            results["errors"].append("SVN conflicts require resolution: " + ", ".join(remaining))
+    except (OSError, ValueError, RuntimeError, ET.ParseError) as exc:
+        results["errors"].append(str(exc))
+    results["updated"] = sum(1 for out in output for line in out.splitlines()
+                             if _UPDATE_ITEM_RE.match(line))
     return results
 
 

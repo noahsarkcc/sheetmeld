@@ -4,6 +4,15 @@
 
 All notable changes to SheetMeld are documented here. Format roughly follows [Keep a Changelog](https://keepachangelog.com/).
 
+## Unreleased
+
+- Preserve semantic merge results across SVN updates: restore clean bytes after advancing BASE, then resolve text conflicts; retain recovery copies on failure.
+- Make “use latest” replace local content and “skip” preserve both content and BASE. Detect pending updates in mixed-revision working copies.
+- Preserve XML encoding/BOM, replace rich-text children, and validate serialized XML before overwriting the working file.
+- Merge the union of populated headers and keep sparse cells ordered. Reject unsupported remote sheet additions/deletions and sheet delete/modify conflicts before saving.
+- Escape untrusted headers, file/sheet names and inline handler arguments; show modified rows even when their new position matches a deleted row's old position.
+- Add XML/API, real temporary SVN repository and frontend rendering regressions to CI.
+
 ## v1.5.1 (2026-08-25)
 
 Project renamed from SmartDiff to SheetMeld for better discoverability and lower name collision with existing tools.

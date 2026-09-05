@@ -162,10 +162,11 @@ sheetmeld/
 - `_decode_output`：依次尝试 UTF-8、GBK、UTF-8(replace) 解码（仅用于命令行消息；文件内容统一走 raw 字节）
 - 所有操作都有超时保护
 - **远程 URL 策略**：`get_log` / `get_dir_log` / `get_file_at_revision` / `get_changed_files_between_revisions` 优先使用远程 URL（通过 `get_svn_info`），无需 `svn update` 即可看到最新版本历史
-- **URL 解码**：SVN 输出的 URL 对非 ASCII 文件名做百分号编码，`get_log` / `get_changed_files_between_revisions` / `get_remote_changed_files` 统一 `unquote` 后再与本地路径比较，保证中文文件名的冲突检测与历史过滤正确
+- **URL 解码**：SVN 输出的 URL 对非 ASCII 文件名做百分号编码，`get_log` / `get_changed_files_between_revisions` 统一 `unquote` 后再与本地路径比较，保证中文文件名的冲突检测与历史过滤正确
 - **版本过滤**：`--stop-on-copy` 避免显示拷贝前的历史；`get_log` 额外按路径过滤；`get_changed_files_between_revisions` 跳过当前目录之外的文件
 - **二进制支持**：`_run_raw` / `get_file_at_revision_raw` / `get_base_content_raw` 返回原始字节流。XML 文件内容也走 raw 路径，由 ElementTree 按 XML 声明自动解码（支持 UTF-16 等编码）
-- **`smart_update`** 支持四种冲突策略：`skip / theirs / mine / semantic`；前三种对应 `svn resolve --accept mine-full/theirs-full/mine-full`，`semantic` 对应 `--accept working`（合并结果已由 `/api/merge/apply` 写回工作副本）；冲突状态通过 `svn status --xml`（`get_conflicted_files`）判断，与 svn 输出语言无关
+- **`smart_update`**：先校验工作区内路径并固定更新版本；semantic/mine 在更新前保存干净内容，更新后恢复，再标记文本冲突已解决。theirs 先 revert 再 update；skip 从更新目标中排除并保留 BASE。后续目录更新避开这些文件，失败时保留恢复副本并报告错误。
+- **`get_remote_update_status`**：使用 `svn status --xml --show-updates` 按文件自己的 BASE 检查更新，工作副本包含多个版本时也能继续发现此前跳过的文件。
 - **`get_conflict_info(filepath)`** 解析 `svn info --xml` 暴露的 `<conflict type="text">`，返回 BASE / MINE / THEIRS 三个旁路文件路径（`.r<old>` / `.mine` / `.r<new>`）和对应版本号；用于让 `/api/merge/preview|apply` 在文件已被 SVN 写入 `<<<<<<<` 标记的情况下，绕开被污染的工作副本读到正确的三方内容。非冲突文件返回 `None`，merge 接口自动 fallback 到 `svn cat -r BASE` / 工作副本 / `svn cat HEAD` 的常规路径
 
 ### `updater.py` — 应用内自动更新

@@ -12,6 +12,7 @@ Pipeline:
 """
 import os
 import re
+import codecs
 import tempfile
 import xml.etree.ElementTree as ET
 from typing import Optional
@@ -50,6 +51,10 @@ ROW_CONFLICT_STATUSES = {
     ROW_MINE_DEL_THEIRS_MOD,
     ROW_MINE_MOD_THEIRS_DEL,
 }
+
+
+class UnsupportedSheetChange(ValueError):
+    """A structural change that the row/cell merger cannot safely write."""
 
 
 def _choose_id_column(base_sheet: dict, mine_sheet: dict, theirs_sheet: dict,
@@ -184,7 +189,10 @@ def _diff_sheet(base_sheet, mine_sheet, theirs_sheet, id_col_hint=None) -> dict:
         theirs_sheet.get("headers", []) if theirs_sheet else [],
         base_sheet.get("headers", []) if base_sheet else [],
     ]
-    headers = max(headers_candidates, key=len)
+    # A previously blank header can become a data column on either side.
+    # Selecting just the longest list silently discards those columns on ties.
+    headers = [next((hs[i] for hs in headers_candidates if i < len(hs) and hs[i]), "")
+               for i in range(max(map(len, headers_candidates)))]
 
     valid_cols = set()
     for i, h in enumerate(headers):
@@ -284,6 +292,16 @@ def three_way_diff(base: dict, mine: dict, theirs: dict,
     mine_sheets = mine.get("sheets", {}) if mine else {}
     theirs_sheets = theirs.get("sheets", {}) if theirs else {}
 
+    changed_names = set(base_sheets) ^ set(theirs_sheets)
+    # Local-only additions are already present in the template. Local deletion
+    # is also safe unless THEIRS changed the deleted sheet in the meantime.
+    changed_names.update(name for name in set(base_sheets) - set(mine_sheets)
+                         if name in theirs_sheets and base_sheets[name] != theirs_sheets[name])
+    if changed_names:
+        raise UnsupportedSheetChange(
+            "暂不支持合并工作表新增/删除：" + ", ".join(sorted(changed_names)) +
+            "。请先在表格编辑器中处理工作表结构后重新预览；原文件未修改。")
+
     all_names = sorted(set(base_sheets) | set(mine_sheets) | set(theirs_sheets))
     sheets_out = {}
     total_auto = 0
@@ -299,17 +317,8 @@ def three_way_diff(base: dict, mine: dict, theirs: dict,
             continue
 
         if m is None:
-            sheets_out[name] = {
-                "id_column": None,
-                "headers": t.get("headers", []),
-                "valid_cols": [],
-                "rows": [],
-                "sheet_status": "added_theirs",
-                "auto_resolved_count": 0,
-                "cell_conflict_count": 0,
-                "row_conflict_count": 0,
-                "conflict_count": 0,
-            }
+            # THEIRS is unchanged from BASE (checked above): keep the local
+            # sheet deletion instead of misclassifying it as a remote addition.
             continue
         if t is None:
             sheets_out[name] = {
@@ -521,49 +530,59 @@ def _cells_from_side(row: dict, side: str) -> dict:
     return out
 
 
-def _read_preamble(filepath: str) -> tuple:
-    """Return (bom_bytes, preamble_text) covering everything before the root element."""
+def _read_xml_text(filepath: str) -> tuple:
+    """Decode XML without losing its BOM or declared byte encoding."""
     with open(filepath, "rb") as f:
         raw = f.read()
-    if raw.startswith(b"\xef\xbb\xbf"):
-        bom = b"\xef\xbb\xbf"
-        body = raw[3:]
+    for bom, encoding in ((codecs.BOM_UTF32_LE, "utf-32-le"),
+                          (codecs.BOM_UTF32_BE, "utf-32-be"),
+                          (codecs.BOM_UTF8, "utf-8"),
+                          (codecs.BOM_UTF16_LE, "utf-16-le"),
+                          (codecs.BOM_UTF16_BE, "utf-16-be")):
+        if raw.startswith(bom):
+            return bom, encoding, raw[len(bom):].decode(encoding)
+    if raw.startswith(b"<\x00"):
+        encoding = "utf-16-le"
+    elif raw.startswith(b"\x00<"):
+        encoding = "utf-16-be"
     else:
-        bom = b""
-        body = raw
-    try:
-        text = body.decode("utf-8")
-    except UnicodeDecodeError:
-        text = body.decode("utf-8", errors="replace")
+        declaration = re.match(br'''\s*<\?xml\b[^>]*\bencoding\s*=\s*["']([^"']+)["']''', raw)
+        encoding = declaration.group(1).decode("ascii") if declaration else "utf-8"
+    return b"", encoding, raw.decode(encoding)
+
+
+def _read_preamble(filepath: str) -> tuple:
+    """Return (bom, encoding, preamble) before the root element."""
+    bom, encoding, text = _read_xml_text(filepath)
 
     pos = 0
     n = len(text)
     while pos < n:
         idx = text.find("<", pos)
         if idx < 0:
-            return bom, text
+            return bom, encoding, text
         nxt = text[idx + 1] if idx + 1 < n else ""
         if nxt.isalpha() or nxt == "_":
-            return bom, text[:idx]
+            return bom, encoding, text[:idx]
         if nxt == "?":
             end = text.find("?>", idx)
             if end < 0:
-                return bom, text
+                return bom, encoding, text
             pos = end + 2
         elif nxt == "!":
             if text[idx:idx + 4] == "<!--":
                 end = text.find("-->", idx)
                 if end < 0:
-                    return bom, text
+                    return bom, encoding, text
                 pos = end + 3
             else:
                 end = text.find(">", idx)
                 if end < 0:
-                    return bom, text
+                    return bom, encoding, text
                 pos = end + 1
         else:
-            return bom, text[:idx]
-    return bom, text
+            return bom, encoding, text[:idx]
+    return bom, encoding, text
 
 
 def _find_row_map(table_el):
@@ -599,12 +618,16 @@ def _find_or_create_cell(row_el, target_col_num: int):
             col_idx += 1
         if col_idx == target_col_num:
             return cell_el
+        if col_idx > target_col_num:
+            new_cell = ET.Element(CELL_TAG, {SS_INDEX: str(target_col_num)})
+            row_el.insert(list(row_el).index(cell_el), new_cell)
+            return new_cell
         merge = cell_el.get(SS_MERGE_ACROSS)
         if merge:
-            try:
-                col_idx += int(merge)
-            except ValueError:
-                pass
+            merged_end = col_idx + int(merge)
+            if col_idx < target_col_num <= merged_end:
+                raise ValueError("Cannot write into a merged-cell continuation")
+            col_idx = merged_end
 
     new_cell = ET.SubElement(row_el, CELL_TAG)
     new_cell.set(SS_INDEX, str(target_col_num))
@@ -614,14 +637,14 @@ def _find_or_create_cell(row_el, target_col_num: int):
 def _set_cell_value(cell_el, value: str):
     """Update or create the <Data> child of a Cell element."""
     data_el = cell_el.find(DATA_TAG)
-    if value:
-        if data_el is None:
-            data_el = ET.SubElement(cell_el, DATA_TAG)
-            data_el.set(SS_TYPE, "String")
-        data_el.text = value
-    else:
-        if data_el is not None:
-            data_el.text = ""
+    if data_el is None and value:
+        data_el = ET.SubElement(cell_el, DATA_TAG)
+        data_el.set(SS_TYPE, "String")
+    if data_el is not None:
+        # Rich text lives in nested HTML elements, not only Data.text.
+        for child in list(data_el):
+            data_el.remove(child)
+        data_el.text = value or ""
 
 
 def _build_row(table_el, row_num: int, cells_dict: dict):
@@ -740,9 +763,7 @@ def _detect_default_ns_style(source_path: str) -> bool:
     ET output to match that style and keep SVN diffs minimal.
     """
     try:
-        with open(source_path, "rb") as f:
-            head = f.read(2048)
-        text = head.decode("utf-8", errors="replace")
+        _bom, _encoding, text = _read_xml_text(source_path)
         return bool(_DEFAULT_NS_PATTERN.search(text))
     except OSError:
         return False
@@ -774,7 +795,7 @@ def write_merged_xml(source_path: str, three_way_result: dict, output_path: str)
         ET.register_namespace(prefix, uri)
 
     use_default_ns = _detect_default_ns_style(source_path)
-    bom, preamble = _read_preamble(source_path)
+    bom, encoding, preamble = _read_preamble(source_path)
 
     # Preserve XML comments inside the document body (TreeBuilder insert_comments
     # requires Python 3.8+, which is our minimum). The default parser drops them.
@@ -783,6 +804,8 @@ def write_merged_xml(source_path: str, three_way_result: dict, output_path: str)
     root = tree.getroot()
 
     sheets = three_way_result.get("sheets", {})
+    if any(s.get("sheet_status") == "added_theirs" for s in sheets.values()):
+        raise UnsupportedSheetChange("暂不支持写回远端新增工作表；原文件未修改。")
     for ws_el in root.iter(WORKSHEET_TAG):
         name = ws_el.get(SS_NAME, "Unknown")
         sheet_result = sheets.get(name)
@@ -795,12 +818,15 @@ def write_merged_xml(source_path: str, three_way_result: dict, output_path: str)
         _apply_sheet_ops(table_el, ops)
         _update_table_extent(table_el)
 
-    body_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=False)
-
+    body_text = ET.tostring(root, encoding="unicode")
     if use_default_ns:
-        body_text = body_bytes.decode("utf-8")
         body_text = _strip_ss_element_prefix(body_text)
-        body_bytes = body_text.encode("utf-8")
+    if not preamble:
+        preamble = '<?xml version="1.0"?>\n'
+    output_bytes = bom + (preamble + body_text).encode(encoding, errors="xmlcharrefreplace")
+    # Reject malformed output (including custom values with XML control chars)
+    # before touching the working copy or resolving an SVN conflict.
+    ET.fromstring(output_bytes)
 
     # Atomic write: serialize to a temp file in the same directory, then replace
     # the target in one os.replace() call. A crash mid-write can no longer leave
@@ -809,13 +835,7 @@ def write_merged_xml(source_path: str, three_way_result: dict, output_path: str)
     fd, tmp_path = tempfile.mkstemp(dir=out_dir, suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as f:
-            if bom:
-                f.write(bom)
-            if preamble:
-                f.write(preamble.encode("utf-8"))
-            elif not body_bytes.startswith(b"<?xml"):
-                f.write(b'<?xml version="1.0"?>\n')
-            f.write(body_bytes)
+            f.write(output_bytes)
         os.replace(tmp_path, output_path)
     except Exception:
         try:

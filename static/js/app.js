@@ -110,7 +110,7 @@ async function init() {
     setTimeout(checkUpdateSilent, 5000);
   } catch (e) {
     document.querySelector(".main").innerHTML =
-      `<div class="placeholder"><div class="icon">!</div><div class="text">${t('error.connection', e.message)}</div></div>`;
+      `<div class="placeholder"><div class="icon">!</div><div class="text">${t('error.connection', escHtml(e.message))}</div></div>`;
   }
 }
 
@@ -171,7 +171,7 @@ function renderWorkspaceSelect() {
   const cfg = state.config;
   if (!cfg.workspaces) return;
   sel.innerHTML = cfg.workspaces.map((ws, i) =>
-    `<option value="${i}" ${i === cfg.active_workspace ? "selected" : ""}>${ws.name} — ${ws.path}</option>`
+    `<option value="${i}" ${i === cfg.active_workspace ? "selected" : ""}>${escHtml(ws.name)} — ${escHtml(ws.path)}</option>`
   ).join("");
 }
 
@@ -340,7 +340,7 @@ async function dirBrowserNavigate(path) {
         for (let i = 0; i < parts.length; i++) {
           const seg = parts.slice(0, i + 1).join("/");
           const isLast = i === parts.length - 1;
-          crumbs += ` <span class="sep">\u203a</span> <span class="crumb${isLast ? " active" : ""}" onclick="dirBrowserNavigate('${seg.replace(/'/g, "\\'")}')">${parts[i]}</span>`;
+          crumbs += ` <span class="sep">\u203a</span> <span class="crumb${isLast ? " active" : ""}" onclick="dirBrowserNavigate(${jsArg(seg)})">${escHtml(parts[i])}</span>`;
         }
         breadEl.innerHTML = crumbs;
       }
@@ -349,20 +349,20 @@ async function dirBrowserNavigate(path) {
     let html = "";
     if (!data.is_root && _dirBrowserPath) {
       const parent = _dirParent(_dirBrowserPath);
-      html += `<div class="dir-item dir-item-up" onclick="dirBrowserNavigate('${_dirNorm(parent).replace(/'/g, "\\'")}')">\ud83d\udcc1 ..</div>`;
+      html += `<div class="dir-item dir-item-up" onclick="dirBrowserNavigate(${jsArg(_dirNorm(parent))})">\ud83d\udcc1 ..</div>`;
     }
     if (data.dirs.length === 0 && !html) {
       listEl.innerHTML = `<div style="padding:10px;color:var(--text-dim)">${t('dirBrowser.noSubdirs')}</div>`;
     } else {
       for (const d of data.dirs) {
         const name = _dirNorm(d).split("/").filter(Boolean).pop() || d;
-        const dSafe = _dirNorm(d).replace(/'/g, "\\'");
-        html += `<div class="dir-item" onclick="dirBrowserHighlight(this)" ondblclick="dirBrowserNavigate('${dSafe}')">\ud83d\udcc2 ${name}</div>`;
+        const dSafe = jsArg(_dirNorm(d));
+        html += `<div class="dir-item" onclick="dirBrowserHighlight(this)" ondblclick="dirBrowserNavigate(${dSafe})">\ud83d\udcc2 ${escHtml(name)}</div>`;
       }
       listEl.innerHTML = html;
     }
   } catch (e) {
-    listEl.innerHTML = `<div style="padding:10px;color:var(--red)">${t('dirBrowser.loadFailed', e.message)}</div>`;
+    listEl.innerHTML = `<div style="padding:10px;color:var(--red)">${t('dirBrowser.loadFailed', escHtml(e.message))}</div>`;
   }
 }
 
@@ -501,7 +501,7 @@ async function doSvnUpdate() {
       await _runUpdateAndReport({});
     }
   } catch (e) {
-    banner.innerHTML = `${t('update.failed', e.message)} <button class="btn-dismiss" onclick="dismissBanner()">${t('update.close')}</button>`;
+    banner.innerHTML = `${t('update.failed', escHtml(e.message))} <button class="btn-dismiss" onclick="dismissBanner()">${t('update.close')}</button>`;
   }
 }
 
@@ -516,12 +516,11 @@ function showUpdateConflictModal(checkData) {
   let conflictHtml = "";
   for (const fname of conflicts) {
     const isXml = fname.toLowerCase().endsWith(".xml");
-    const safeName = fname.replace(/'/g, "\\'");
     const semBtn = isXml
       ? `<button onclick="setConflictChoice(this,'semantic')" title="${t('conflict.mergeTitle')}" class="btn-merge">${t('conflict.mergeBtn')}</button>`
       : "";
-    conflictHtml += `<div class="conflict-item" data-file="${fname}">
-      <span class="fname">${fname}</span>
+    conflictHtml += `<div class="conflict-item" data-file="${escHtml(fname)}">
+      <span class="fname">${escHtml(fname)}</span>
       <div class="actions">
         <button onclick="setConflictChoice(this,'mine')" title="${t('conflict.keepMineTitle')}">${t('conflict.keepMine')}</button>
         <button onclick="setConflictChoice(this,'theirs')" title="${t('conflict.useTheirsTitle')}">${t('conflict.useTheirs')}</button>
@@ -624,12 +623,18 @@ async function _runUpdateAndReport(payload) {
     if (result.theirs && result.theirs.length) parts.push(t('update.doneTheirs', result.theirs.length));
     if (result.mine && result.mine.length) parts.push(t('update.doneMine', result.mine.length));
     if (result.semantic && result.semantic.length) parts.push(t('update.doneSemantic', result.semantic.length));
-    if (result.errors && result.errors.length) parts.push(t('update.doneErrors', result.errors.length));
-    banner.innerHTML = `${t('update.doneDetail', parts.join(", "))}`;
-    setTimeout(() => { banner.style.display = "none"; checkRemoteVersion(); }, 5000);
+    if (result.errors && result.errors.length) {
+      _bannerDismissed = true; // Keep the error/recovery path visible until dismissed.
+      const details = result.errors.concat(result.backups || []).join("\n");
+      banner.innerHTML = `${t('update.failed', escHtml(details))} <button class="btn-dismiss" onclick="dismissBanner()">${t('update.close')}</button>`;
+      banner.style.display = "flex";
+    } else {
+      banner.innerHTML = `${t('update.doneDetail', parts.join(", "))}`;
+      setTimeout(() => { banner.style.display = "none"; checkRemoteVersion(); }, 5000);
+    }
     await reloadAfterUpdate({ skipRemoteCheck: true });
   } catch (e) {
-    banner.innerHTML = `${t('update.failed', e.message)} <button class="btn-dismiss" onclick="dismissBanner()">${t('update.close')}</button>`;
+    banner.innerHTML = `${t('update.failed', escHtml(e.message))} <button class="btn-dismiss" onclick="dismissBanner()">${t('update.close')}</button>`;
     banner.style.display = "flex";
   } finally {
     state.svnUpdateInFlight = false;
@@ -647,7 +652,7 @@ async function _processNextSemantic() {
   const idx = ctx.semanticDone.length + 1;
   const total = ctx.totalSemantic;
   const banner = document.getElementById("updateBanner");
-  banner.innerHTML = t('update.semanticStep', fname, idx, total);
+  banner.innerHTML = t('update.semanticStep', escHtml(fname), idx, total);
   banner.style.display = "flex";
 
   state.mergeFromSvnConflict = true;
@@ -757,11 +762,10 @@ function renderFileList() {
                       : lowName.endsWith(".xls") ? '<span class="type-badge xls">XLS</span>' : '';
       const slashIdx = f.name.lastIndexOf("/");
       const displayName = slashIdx >= 0 ? f.name.substring(slashIdx + 1) : f.name;
-      const dirBadge = slashIdx >= 0 ? `<span class="type-badge dir">${f.name.substring(0, slashIdx)}</span>` : '';
-      const safeName = f.name.replace(/&/g,"&amp;").replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-      return `<div class="file-item${active}" onclick="selectFile('${safeName}')">
+      const dirBadge = slashIdx >= 0 ? `<span class="type-badge dir">${escHtml(f.name.substring(0, slashIdx))}</span>` : '';
+      return `<div class="file-item${active}" onclick="selectFile(${jsArg(f.name)})">
         <span class="status-dot${dotClass}"${dotTitle ? ` title="${dotTitle}"` : ""}></span>
-        <span class="name" title="${f.name}">${displayName}</span>
+        <span class="name" title="${escHtml(f.name)}">${escHtml(displayName)}</span>
         ${typeBadge}${dirBadge}
         <span class="size">${formatSize(f.size)}</span>
       </div>`;
@@ -870,27 +874,27 @@ function renderToolbar() {
 
   if (state.mode === "local") {
     tb.innerHTML = `
-      <span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>
+      <span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>
       <div class="spacer" style="flex:1"></div>
       ${_viewToggleHtml()}
       <button class="btn" onclick="doDiffLocal()" title="${t('toolbar.refreshTitle')}">&#8635; ${t('toolbar.refresh')}</button>`;
   } else if (state.mode === "revision") {
     if (state.revLog.length === 0) {
       tb.innerHTML = `
-        <span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>
+        <span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>
         <span style="margin-left:12px;color:var(--text-dim)">${t('toolbar.noRevisions')}</span>`;
     } else if (state.revLog.length === 1) {
       const e = state.revLog[0];
       tb.innerHTML = `
-        <span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>
-        <span style="margin-left:12px;font-size:12px;color:var(--text-dim);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)">r${e.revision} - ${e.author}</span>
+        <span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>
+        <span style="margin-left:12px;font-size:12px;color:var(--text-dim);padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)">r${e.revision} - ${escHtml(e.author)}</span>
         <span style="font-size:11px;color:var(--text-dim);margin-left:8px">${t('toolbar.singleRevision')}</span>`;
     } else {
       const opts = state.revLog.map(e =>
-        `<option value="${e.revision}">r${e.revision} - ${e.author} - ${e.message.substring(0, 30)}</option>`
+        `<option value="${e.revision}">r${e.revision} - ${escHtml(e.author)} - ${escHtml(e.message.substring(0, 30))}</option>`
       ).join("");
       tb.innerHTML = `
-        <span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>
+        <span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>
         <label>${t('toolbar.oldRev')}</label>
         <select id="revOld">${opts}</select>
         <label>${t('toolbar.newRev')}</label>
@@ -903,7 +907,7 @@ function renderToolbar() {
     }
   } else if (state.mode === "browse") {
     tb.innerHTML = `
-      <span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>
+      <span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>
       <div style="flex:1"></div>
       <span style="font-size:12px;color:var(--text-dim)">${t('toolbar.browseHint')}</span>`;
   } else if (state.mode === "merge") {
@@ -917,7 +921,7 @@ function renderMergeToolbar() {
 
   let stats = "";
   let progress = "";
-  let applyBtnDisabled = "";
+  let applyBtnDisabled = (!md || !md.sheets || md.error || state.mergeApplyInFlight || state.svnUpdateInFlight) ? "disabled" : "";
   let extras = "";
   if (md && md.summary) {
     const s = md.summary;
@@ -949,7 +953,7 @@ function renderMergeToolbar() {
   }
 
   const fname = state.selectedFile
-    ? `<span style="font-size:13px;color:var(--text-bright)">${state.selectedFile}</span>`
+    ? `<span style="font-size:13px;color:var(--text-bright)">${escHtml(state.selectedFile)}</span>`
     : `<span style="font-size:13px;color:var(--text-dim)">${t('merge.noFile')}</span>`;
 
   let queueHint = "";
@@ -965,7 +969,7 @@ function renderMergeToolbar() {
   tb.innerHTML = `
     ${fname}
     <label>${t('merge.compareVersion')}</label>
-    <input type="text" id="mergeTheirsRev" value="${state.mergeTheirsRev}" style="width:80px" title="${t('merge.revInputTitle')}" />
+    <input type="text" id="mergeTheirsRev" value="${escHtml(state.mergeTheirsRev)}" style="width:80px" title="${t('merge.revInputTitle')}" />
     <button class="btn" onclick="doMergePreview()">${t('merge.refresh')}</button>
     ${stats}
     ${progress}
@@ -1074,7 +1078,7 @@ function rowKeepsCells(row) {
 function renderOverviewToolbar() {
   const tb = document.getElementById("toolbar");
   const opts = state.overviewLog.map(e =>
-    `<option value="${e.revision}">r${e.revision} - ${e.author} - ${e.message.substring(0, 40)}</option>`
+    `<option value="${e.revision}">r${e.revision} - ${escHtml(e.author)} - ${escHtml(e.message.substring(0, 40))}</option>`
   ).join("");
   tb.innerHTML = `
     <label>${t('toolbar.oldRev')}</label>
@@ -1215,7 +1219,7 @@ function renderContent() {
       return;
     }
     if (state.mergeData.error) {
-      main.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${state.mergeData.error}</div></div>`;
+      main.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${escHtml(state.mergeData.error)}</div></div>`;
       return;
     }
     renderMergeView(main);
@@ -1242,7 +1246,7 @@ function renderContent() {
   if (state.diff.error) {
     main.innerHTML = `<div class="placeholder">
       <div class="icon">&#9888;</div>
-      <div class="text">${state.diff.error}</div>
+      <div class="text">${escHtml(state.diff.error)}</div>
     </div>`;
     return;
   }
@@ -1300,13 +1304,13 @@ function renderDiffView(container) {
       if (sd.removed_rows.length > 0) parts.push(`<span class="badge removed">-${sd.removed_rows.length}</span>`);
       badge = parts.join("");
     }
-    html += `<button class="sheet-tab${active}" onclick="setActiveSheet('${name.replace(/'/g, "\\'")}')">${name}${badge}</button>`;
+    html += `<button class="sheet-tab${active}" onclick="setActiveSheet(${jsArg(name)})">${escHtml(name)}${badge}</button>`;
   }
   html += `</div>`;
 
   // Stats panel
   html += `<div class="diff-stats">`;
-  html += `<span class="diff-stats-label">${diff.old_label || t('diff.old')} → ${diff.new_label || t('diff.new')}</span>`;
+  html += `<span class="diff-stats-label">${escHtml(diff.old_label || t('diff.old'))} → ${escHtml(diff.new_label || t('diff.new'))}</span>`;
   if (summary.has_changes) {
     html += `<span class="diff-stats-counts">`;
     if (summary.total_added_rows > 0)
@@ -1604,18 +1608,18 @@ function _appendRowsBatch(tbodyId, rows, colLetters, headers, start) {
 }
 
 function renderDiffTable(sheetDiff) {
-  const headers = sheetDiff.new_headers.length > 0 ? sheetDiff.new_headers : sheetDiff.old_headers;
+  const oldHeaders = sheetDiff.old_headers || [];
+  const newHeaders = sheetDiff.new_headers || [];
+  const headers = Array.from({ length: Math.max(oldHeaders.length, newHeaders.length) },
+    (_, i) => newHeaders[i] || oldHeaders[i] || "");
   if (headers.length === 0) return `<div class="placeholder"><div class="text">${t('diff.sheetNoData')}</div></div>`;
 
   const allRows = [];
-  const seenRows = new Set();
-  (sheetDiff.removed_rows || []).forEach(r => { allRows.push({ ...r, _status: "removed" }); seenRows.add(r._row); });
-  (sheetDiff.added_rows || []).forEach(r => { allRows.push({ ...r, _status: "added" }); seenRows.add(r._row); });
+  // Old and new physical row numbers are different coordinate systems.
+  (sheetDiff.removed_rows || []).forEach(r => { allRows.push({ ...r, _status: "removed" }); });
+  (sheetDiff.added_rows || []).forEach(r => { allRows.push({ ...r, _status: "added" }); });
   (sheetDiff.modified_rows || []).forEach(mr => {
-    if (!seenRows.has(mr._row)) {
-      allRows.push({ _row: mr._row, cells: mr.cells, old_cells: mr.old_cells, changes: mr.changes, _status: "modified" });
-      seenRows.add(mr._row);
-    }
+    allRows.push({ _row: mr._row, cells: mr.cells, old_cells: mr.old_cells, changes: mr.changes, _status: "modified" });
   });
   allRows.sort((a, b) => a._row - b._row);
 
@@ -1626,7 +1630,7 @@ function renderDiffTable(sheetDiff) {
   const tid = `dtb_${++_tableIdCounter}`;
   const colLetters = _colLetters(headers.length);
   let headHtml = `<div class="diff-container"><table class="diff-table"><thead><tr><th class="row-num">#</th>`;
-  for (let i = 0; i < headers.length; i++) headHtml += `<th title="${colLetters[i]}">${headers[i] || colLetters[i]}</th>`;
+  for (let i = 0; i < headers.length; i++) headHtml += `<th title="${colLetters[i]}">${escHtml(headers[i] || colLetters[i])}</th>`;
   headHtml += `</tr></thead><tbody id="${tid}">`;
 
   const firstBatch = allRows.slice(0, BATCH_SIZE);
@@ -1648,7 +1652,7 @@ function renderBrowseView(container) {
   for (const name of sheetNames) {
     const sd = parsed.sheets[name];
     const active = state.activeSheet === name ? " active" : "";
-    html += `<button class="sheet-tab${active}" onclick="setActiveSheet('${name.replace(/'/g, "\\'")}')">${name} <span class="badge" style="border:1px solid var(--border);color:var(--text-dim)">${sd.row_count}</span></button>`;
+    html += `<button class="sheet-tab${active}" onclick="setActiveSheet(${jsArg(name)})">${escHtml(name)} <span class="badge" style="border:1px solid var(--border);color:var(--text-dim)">${sd.row_count}</span></button>`;
   }
   html += `</div>`;
 
@@ -1663,7 +1667,7 @@ function renderBrowseView(container) {
     const browseTid = `btb_${++_tableIdCounter}`;
     html += `<div class="diff-container"><table class="diff-table"><thead><tr>`;
     html += `<th class="row-num">#</th>`;
-    for (let i = 0; i < headers.length; i++) html += `<th title="${colLetters[i]}">${headers[i] || colLetters[i]}</th>`;
+    for (let i = 0; i < headers.length; i++) html += `<th title="${colLetters[i]}">${escHtml(headers[i] || colLetters[i])}</th>`;
     html += `</tr></thead><tbody id="${browseTid}">`;
 
     const firstBatch = dataRows.slice(0, BATCH_SIZE);
@@ -1727,7 +1731,7 @@ function setOverviewFilter(filter) {
 
 function toggleOverviewFile(fname) {
   state.overviewExpanded[fname] = !state.overviewExpanded[fname];
-  const card = document.querySelector(`.ov-file-card[data-file="${fname}"]`);
+  const card = Array.from(document.querySelectorAll(".ov-file-card")).find(el => el.dataset.file === fname);
   if (!card) { renderContent(); return; }
 
   const expanded = state.overviewExpanded[fname];
@@ -1761,7 +1765,7 @@ function toggleOverviewFile(fname) {
 function setOverviewSheet(fname, sheetName) {
   const key = `_sheet_${fname}`;
   state.overviewExpanded[key] = sheetName;
-  const card = document.querySelector(`.ov-file-card[data-file="${fname}"]`);
+  const card = Array.from(document.querySelectorAll(".ov-file-card")).find(el => el.dataset.file === fname);
   if (!card) { renderContent(); return; }
 
   const existingDetail = card.querySelector(".ov-file-detail");
@@ -1804,7 +1808,7 @@ async function doOverview() {
 function renderOverviewView(container) {
   const ov = state.overviewFiles;
   if (ov.error) {
-    container.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${ov.error}</div></div>`;
+    container.innerHTML = `<div class="placeholder"><div class="icon">&#9888;</div><div class="text">${escHtml(ov.error)}</div></div>`;
     return;
   }
 
@@ -1856,11 +1860,11 @@ function renderOverviewView(container) {
       changeSummary = parts.join(" ");
     }
 
-    html += `<div class="ov-file-card ${statusClass}${expanded ? " expanded" : ""}" data-file="${f.file}">`;
-    html += `<div class="ov-file-header" onclick="toggleOverviewFile('${f.file}')">`;
+    html += `<div class="ov-file-card ${statusClass}${expanded ? " expanded" : ""}" data-file="${escHtml(f.file)}">`;
+    html += `<div class="ov-file-header" onclick="toggleOverviewFile(${jsArg(f.file)})">`;
     html += `<span class="ov-expand">${expanded ? "\u25BC" : "\u25B6"}</span>`;
     html += `<span class="ov-status" style="color:${statusColor}">${statusIcon}</span>`;
-    html += `<span class="ov-filename">${f.file}</span>`;
+    html += `<span class="ov-filename">${escHtml(f.file)}</span>`;
     html += `<div class="ov-badges">${changeSummary}</div>`;
     html += `</div>`;
 
@@ -1901,7 +1905,7 @@ function renderOverviewFileDetail(f) {
         if (sd.removed_rows.length > 0) parts.push(`<span class="badge removed">-${sd.removed_rows.length}</span>`);
         badge = parts.join("");
       }
-      html += `<button class="sheet-tab${active}" onclick="event.stopPropagation();setOverviewSheet('${f.file}','${name.replace(/'/g, "\\'")}')">${name}${badge}</button>`;
+      html += `<button class="sheet-tab${active}" onclick="event.stopPropagation();setOverviewSheet(${jsArg(f.file)},${jsArg(name)})">${escHtml(name)}${badge}</button>`;
     }
     html += `</div>`;
   }
@@ -1915,8 +1919,14 @@ function renderOverviewFileDetail(f) {
 }
 
 function escHtml(s) {
-  if (!s) return "";
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// HTML attributes are decoded before an inline handler is compiled. Escape
+// both contexts: a JSON string literal first, then the enclosing HTML.
+function jsArg(value) {
+  return escHtml(JSON.stringify(String(value)));
 }
 
 // ── Merge mode ──
@@ -2040,6 +2050,7 @@ async function applyMerge() {
     alert(t('merge.applyFailed', e.message));
   } finally {
     state.mergeApplyInFlight = false;
+    renderToolbar();
   }
 }
 
@@ -2185,7 +2196,7 @@ function renderMergeView(container) {
     let badge = "";
     if (sd.conflict_count > 0) badge = `<span class="badge changed">${t('merge.conflictBadge', sd.conflict_count)}</span>`;
     else if (sd.auto_resolved_count > 0) badge = `<span class="badge added">${t('merge.autoBadge', sd.auto_resolved_count)}</span>`;
-    html += `<button class="sheet-tab${active}" onclick="setActiveSheet('${name.replace(/'/g, "\\'")}')">${name}${badge}</button>`;
+    html += `<button class="sheet-tab${active}" onclick="setActiveSheet(${jsArg(name)})">${escHtml(name)}${badge}</button>`;
   }
   html += `</div>`;
 
@@ -2263,8 +2274,8 @@ function renderMergeRow(sheetName, sheet, row) {
   const needsAttn = rowNeedsAttention(row);
   const expanded = isRowExpanded(sheetName, row);
   const rowNum = row.row_num_mine || row.row_num_theirs || row.row_num_base || "?";
-  const sk = sheetName.replace(/'/g, "\\'");
-  const rk = String(row.row_key).replace(/'/g, "\\'");
+  const sk = jsArg(sheetName);
+  const rk = jsArg(row.row_key);
 
   const cls = ["merge-row"];
   if (isConflict) cls.push("row-conflict");
@@ -2274,7 +2285,7 @@ function renderMergeRow(sheetName, sheet, row) {
   let html = `<div class="${cls.join(" ")}" data-status="${status}">`;
 
   // Header
-  html += `<div class="merge-row-header" onclick="toggleRowExpanded('${sk}','${rk}')">
+  html += `<div class="merge-row-header" onclick="toggleRowExpanded(${sk},${rk})">
     <span class="row-toggle">${expanded ? "▾" : "▸"}</span>
     <span class="row-key">${escHtml(String(row.row_key))}</span>
     <span class="row-num">#${rowNum}</span>
@@ -2425,13 +2436,13 @@ function renderRowFullTable(sheetName, sheet, row) {
 function renderRowDecisionButtonsInner(sheetName, row) {
   const status = row.status;
   const dec = row.row_decision;
-  const sk = sheetName.replace(/'/g, "\\'");
-  const rk = String(row.row_key).replace(/'/g, "\\'");
+  const sk = jsArg(sheetName);
+  const rk = jsArg(row.row_key);
 
   const btn = (choice, label, title, kind) => {
     const active = dec === choice ? " selected" : "";
     const k = kind ? ` btn-${kind}` : "";
-    return `<button class="row-decision-btn${active}${k}" title="${title || ""}" onclick="setRowChoice('${sk}','${rk}','${choice}')">${label}</button>`;
+    return `<button class="row-decision-btn${active}${k}" title="${title || ""}" onclick="setRowChoice(${sk},${rk},'${choice}')">${label}</button>`;
   };
 
   if (status === "added_theirs") return btn("accept_theirs", t('merge.btn.acceptTheirs'), t('merge.btn.acceptTheirsTitle'), "theirs") + btn("keep_mine", t('merge.btn.ignore'), t('merge.btn.ignoreTitle'), "mine");
@@ -2469,8 +2480,8 @@ function renderRowPreviewHorizontal(sheet, row, side, label) {
 }
 
 function renderMergeCell(sheetName, row, col, cell) {
-  const sk = sheetName.replace(/'/g, "\\'");
-  const rk = String(row.row_key).replace(/'/g, "\\'");
+  const sk = jsArg(sheetName);
+  const rk = jsArg(row.row_key);
   const isConflict = cell.status === "conflict";
   const isResolved = cell.resolved !== null && cell.resolved !== undefined;
   const statusLabel = getCellStatusLabel(cell.status);
@@ -2499,9 +2510,9 @@ function renderMergeCell(sheetName, row, col, cell) {
     };
     const customSel = (cell.resolved !== null && cell.resolved !== cell.mine && cell.resolved !== cell.theirs && cell.resolved !== cell.base) ? " selected" : "";
     btns = `<div class="merge-resolve-btns">
-      <button class="btn-mine${sel("mine")}" onclick="setCellChoice('${sk}','${rk}','${col}','mine')" title="${t('merge.cellBtn.keepMineTitle')}">${t('merge.cellBtn.keepMine')}</button>
-      <button class="btn-theirs${sel("theirs")}" onclick="setCellChoice('${sk}','${rk}','${col}','theirs')" title="${t('merge.cellBtn.useTheirsTitle')}">${t('merge.cellBtn.useTheirs')}</button>
-      <button class="btn-custom${customSel}" onclick="setCellChoice('${sk}','${rk}','${col}','custom')" title="${t('merge.cellBtn.customTitle')}">${t('merge.cellBtn.custom')}</button>
+      <button class="btn-mine${sel("mine")}" onclick="setCellChoice(${sk},${rk},'${col}','mine')" title="${t('merge.cellBtn.keepMineTitle')}">${t('merge.cellBtn.keepMine')}</button>
+      <button class="btn-theirs${sel("theirs")}" onclick="setCellChoice(${sk},${rk},'${col}','theirs')" title="${t('merge.cellBtn.useTheirsTitle')}">${t('merge.cellBtn.useTheirs')}</button>
+      <button class="btn-custom${customSel}" onclick="setCellChoice(${sk},${rk},'${col}','custom')" title="${t('merge.cellBtn.customTitle')}">${t('merge.cellBtn.custom')}</button>
     </div>`;
   }
 

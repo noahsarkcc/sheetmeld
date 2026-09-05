@@ -32,13 +32,20 @@ python tests\test_merger.py
 
 # 2) HTTP API 端到端测试（mock SVN，无需真实仓库）
 python tests\test_api_merge.py
+python tests\test_differ.py
+python tests\test_updater.py
+python tests\test_regressions.py
+python tests\test_svn_update.py
+node --test tests/test_frontend.js
 ```
+
+新增回归覆盖 XML 编码/结构、真实 SVN 更新行为及前端转义/行渲染。SVN 测试只创建临时本地 file:// 仓库，需要 PATH 中有 `svn` 和 `svnadmin`，缺失时明确跳过；前端测试需要 Node.js 22+。完整本地套件当前共 119 个测试。
 
 预期输出末尾：
 
 ```
-== 全部通过：27/27 ==     （test_merger.py）
-== 全部通过：15/15 ==     （test_api_merge.py）
+== 全部通过：29/29 ==     （test_merger.py）
+== 全部通过：28/28 ==     （test_api_merge.py）
 ```
 
 任意一项失败请把整段输出发给我。
